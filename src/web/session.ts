@@ -12,6 +12,7 @@ import { danger, success } from "../globals.js";
 import { getChildLogger, toPinoLikeLogger } from "../logging.js";
 import { ensureDir, resolveUserPath } from "../utils.js";
 import { VERSION } from "../version.js";
+import { HttpsProxyAgent } from "https-proxy-agent";
 import { formatCliCommand } from "../cli/command-format.js";
 
 import {
@@ -91,17 +92,23 @@ async function safeSaveCreds(
 export async function createWaSocket(
   printQr: boolean,
   verbose: boolean,
-  opts: { authDir?: string; onQr?: (qr: string) => void } = {},
+  opts: { authDir?: string; onQr?: (qr: string) => void; proxy?: string } = {},
 ) {
   const baseLogger = getChildLogger(
     { module: "baileys" },
     {
       level: verbose ? "info" : "silent",
+      ...(opts.proxy ? { proxy: opts.proxy } : {}),
     },
   );
   const logger = toPinoLikeLogger(baseLogger, verbose ? "info" : "silent");
   const authDir = resolveUserPath(opts.authDir ?? resolveDefaultWebAuthDir());
   await ensureDir(authDir);
+
+  const agent = opts.proxy ? new HttpsProxyAgent(opts.proxy) : undefined;
+  if (agent) {
+    logger.info({ proxy: opts.proxy }, "Using proxy for WhatsApp connection");
+  }
   const sessionLogger = getChildLogger({ module: "web-session" });
   maybeRestoreCredsFromBackup(authDir);
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
@@ -117,6 +124,7 @@ export async function createWaSocket(
     browser: ["moltbot", "cli", VERSION],
     syncFullHistory: false,
     markOnlineOnConnect: false,
+    agent,
   });
 
   sock.ev.on("creds.update", () => enqueueSaveCreds(authDir, saveCreds, sessionLogger));

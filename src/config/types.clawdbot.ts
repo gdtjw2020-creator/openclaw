@@ -31,6 +31,11 @@ export type MoltbotConfig = {
     /** ISO timestamp when this config was last written. */
     lastTouchedAt?: string;
   };
+  /**
+   * Optional HTTP proxy URL (e.g. http://127.0.0.1:7890) to use for WhatsApp/Network requests.
+   * If provided, WhatsApp socket will try to connect via this proxy.
+   */
+  proxy?: string;
   auth?: AuthConfig;
   env?: {
     /** Opt-in: import missing secrets from a login shell environment (exec `$SHELL -l -c 'env -0'`). */
@@ -43,10 +48,10 @@ export type MoltbotConfig = {
     vars?: Record<string, string>;
     /** Sugar: allow env vars directly under env (string values only). */
     [key: string]:
-      | string
-      | Record<string, string>
-      | { enabled?: boolean; timeoutMs?: number }
-      | undefined;
+    | string
+    | Record<string, string>
+    | { enabled?: boolean; timeoutMs?: number }
+    | undefined;
   };
   wizard?: {
     lastRunAt?: string;

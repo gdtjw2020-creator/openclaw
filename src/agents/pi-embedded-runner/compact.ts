@@ -188,13 +188,13 @@ export async function compactEmbeddedPiSessionDirect(
       : [];
     restoreSkillEnv = params.skillsSnapshot
       ? applySkillEnvOverridesFromSnapshot({
-          snapshot: params.skillsSnapshot,
-          config: params.config,
-        })
+        snapshot: params.skillsSnapshot,
+        config: params.config,
+      })
       : applySkillEnvOverrides({
-          skills: skillEntries ?? [],
-          config: params.config,
-        });
+        skills: skillEntries ?? [],
+        config: params.config,
+      });
     const skillsPrompt = resolveSkillsPromptForRun({
       skillsSnapshot: params.skillsSnapshot,
       entries: shouldLoadSkillEntries ? skillEntries : undefined,
@@ -238,10 +238,10 @@ export async function compactEmbeddedPiSessionDirect(
     const runtimeChannel = normalizeMessageChannel(params.messageChannel ?? params.messageProvider);
     let runtimeCapabilities = runtimeChannel
       ? (resolveChannelCapabilities({
-          cfg: params.config,
-          channel: runtimeChannel,
-          accountId: params.agentAccountId,
-        }) ?? [])
+        cfg: params.config,
+        channel: runtimeChannel,
+        accountId: params.agentAccountId,
+      }) ?? [])
       : undefined;
     if (runtimeChannel === "telegram" && params.config) {
       const inlineButtonsScope = resolveTelegramInlineButtonsScope({
@@ -260,38 +260,38 @@ export async function compactEmbeddedPiSessionDirect(
     const reactionGuidance =
       runtimeChannel && params.config
         ? (() => {
-            if (runtimeChannel === "telegram") {
-              const resolved = resolveTelegramReactionLevel({
-                cfg: params.config,
-                accountId: params.agentAccountId ?? undefined,
-              });
-              const level = resolved.agentReactionGuidance;
-              return level ? { level, channel: "Telegram" } : undefined;
-            }
-            if (runtimeChannel === "signal") {
-              const resolved = resolveSignalReactionLevel({
-                cfg: params.config,
-                accountId: params.agentAccountId ?? undefined,
-              });
-              const level = resolved.agentReactionGuidance;
-              return level ? { level, channel: "Signal" } : undefined;
-            }
-            return undefined;
-          })()
+          if (runtimeChannel === "telegram") {
+            const resolved = resolveTelegramReactionLevel({
+              cfg: params.config,
+              accountId: params.agentAccountId ?? undefined,
+            });
+            const level = resolved.agentReactionGuidance;
+            return level ? { level, channel: "Telegram" } : undefined;
+          }
+          if (runtimeChannel === "signal") {
+            const resolved = resolveSignalReactionLevel({
+              cfg: params.config,
+              accountId: params.agentAccountId ?? undefined,
+            });
+            const level = resolved.agentReactionGuidance;
+            return level ? { level, channel: "Signal" } : undefined;
+          }
+          return undefined;
+        })()
         : undefined;
     // Resolve channel-specific message actions for system prompt
     const channelActions = runtimeChannel
       ? listChannelSupportedActions({
-          cfg: params.config,
-          channel: runtimeChannel,
-        })
+        cfg: params.config,
+        channel: runtimeChannel,
+      })
       : undefined;
     const messageToolHints = runtimeChannel
       ? resolveChannelMessageToolHints({
-          cfg: params.config,
-          channel: runtimeChannel,
-          accountId: params.agentAccountId,
-        })
+        cfg: params.config,
+        channel: runtimeChannel,
+        accountId: params.agentAccountId,
+      })
       : undefined;
 
     const runtimeInfo = {
@@ -437,9 +437,9 @@ export async function compactEmbeddedPiSessionDirect(
             tokensAfter = undefined; // Don't trust the estimate
           }
         } catch {
-          // If estimation fails, leave tokensAfter undefined
           tokensAfter = undefined;
         }
+
         return {
           ok: true,
           compacted: true,

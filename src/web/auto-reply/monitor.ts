@@ -138,6 +138,12 @@ export async function monitorWebChannel(
   };
   process.once("SIGINT", handleSigint);
 
+  const connectRoute = resolveAgentRoute({
+    cfg,
+    channel: "whatsapp",
+    accountId: account.accountId,
+  });
+
   let reconnectAttempts = 0;
 
   while (true) {
@@ -149,8 +155,8 @@ export async function monitorWebChannel(
     let watchdogTimer: NodeJS.Timeout | null = null;
     let lastMessageAt: number | null = null;
     let handledMessages = 0;
-    let _lastInboundMsg: WebInboundMsg | null = null;
     let unregisterUnhandled: (() => void) | null = null;
+    let closeListener = async () => { };
 
     // Watchdog to detect stuck message processing (e.g., event emitter died)
     const MESSAGE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes without any messages
@@ -181,148 +187,154 @@ export async function monitorWebChannel(
       return !hasControlCommand(msg.body, cfg);
     };
 
-    const listener = await (listenerFactory ?? monitorWebInbox)({
-      verbose,
-      accountId: account.accountId,
-      authDir: account.authDir,
-      mediaMaxMb: account.mediaMaxMb,
-      sendReadReceipts: account.sendReadReceipts,
-      debounceMs: inboundDebounceMs,
-      shouldDebounce,
-      onMessage: async (msg: WebInboundMsg) => {
-        handledMessages += 1;
-        lastMessageAt = Date.now();
-        status.lastMessageAt = lastMessageAt;
-        status.lastEventAt = lastMessageAt;
-        emitStatus();
-        _lastInboundMsg = msg;
-        await onMessage(msg);
-      },
-    });
+    let listener;
+    let reason: unknown;
 
-    status.connected = true;
-    status.lastConnectedAt = Date.now();
-    status.lastEventAt = status.lastConnectedAt;
-    status.lastError = null;
-    emitStatus();
-
-    // Surface a concise connection event for the next main-session turn/heartbeat.
-    const { e164: selfE164 } = readWebSelfId(account.authDir);
-    const connectRoute = resolveAgentRoute({
-      cfg,
-      channel: "whatsapp",
-      accountId: account.accountId,
-    });
-    enqueueSystemEvent(`WhatsApp gateway connected${selfE164 ? ` as ${selfE164}` : ""}.`, {
-      sessionKey: connectRoute.sessionKey,
-    });
-
-    setActiveWebListener(account.accountId, listener);
-    unregisterUnhandled = registerUnhandledRejectionHandler((reason) => {
-      if (!isLikelyWhatsAppCryptoError(reason)) return false;
-      const errorStr = formatError(reason);
-      reconnectLogger.warn(
-        { connectionId, error: errorStr },
-        "web reconnect: unhandled rejection from WhatsApp socket; forcing reconnect",
-      );
-      listener.signalClose?.({
-        status: 499,
-        isLoggedOut: false,
-        error: reason,
+    try {
+      listener = await (listenerFactory ?? monitorWebInbox)({
+        verbose,
+        accountId: account.accountId,
+        authDir: account.authDir,
+        mediaMaxMb: account.mediaMaxMb,
+        sendReadReceipts: account.sendReadReceipts,
+        debounceMs: inboundDebounceMs,
+        shouldDebounce,
+        proxy: cfg.proxy,
+        onMessage: async (msg: WebInboundMsg) => {
+          handledMessages += 1;
+          lastMessageAt = Date.now();
+          status.lastMessageAt = lastMessageAt;
+          status.lastEventAt = lastMessageAt;
+          emitStatus();
+          await onMessage(msg);
+        },
       });
-      return true;
-    });
+    } catch (err) {
+      reconnectLogger.error({ error: formatError(err) }, "web reconnect: listener startup failed");
+      reason = { status: 500, error: err };
+    }
 
-    const closeListener = async () => {
-      setActiveWebListener(account.accountId, null);
-      if (unregisterUnhandled) {
-        unregisterUnhandled();
-        unregisterUnhandled = null;
-      }
-      if (heartbeat) clearInterval(heartbeat);
-      if (watchdogTimer) clearInterval(watchdogTimer);
-      if (backgroundTasks.size > 0) {
-        await Promise.allSettled(backgroundTasks);
-        backgroundTasks.clear();
-      }
-      try {
-        await listener.close();
-      } catch (err) {
-        logVerbose(`Socket close failed: ${formatError(err)}`);
-      }
-    };
+    if (listener) {
+      status.connected = true;
+      status.lastConnectedAt = Date.now();
+      status.lastEventAt = status.lastConnectedAt;
+      status.lastError = null;
+      emitStatus();
 
-    if (keepAlive) {
-      heartbeat = setInterval(() => {
-        const authAgeMs = getWebAuthAgeMs(account.authDir);
-        const minutesSinceLastMessage = lastMessageAt
-          ? Math.floor((Date.now() - lastMessageAt) / 60000)
-          : null;
+      // Surface a concise connection event for the next main-session turn/heartbeat.
+      const { e164: selfE164 } = readWebSelfId(account.authDir);
 
-        const logData = {
-          connectionId,
-          reconnectAttempts,
-          messagesHandled: handledMessages,
-          lastMessageAt,
-          authAgeMs,
-          uptimeMs: Date.now() - startedAt,
-          ...(minutesSinceLastMessage !== null && minutesSinceLastMessage > 30
-            ? { minutesSinceLastMessage }
-            : {}),
-        };
+      enqueueSystemEvent(`WhatsApp gateway connected${selfE164 ? ` as ${selfE164}` : ""}.`, {
+        sessionKey: connectRoute.sessionKey,
+      });
 
-        if (minutesSinceLastMessage && minutesSinceLastMessage > 30) {
-          heartbeatLogger.warn(logData, "⚠️ web gateway heartbeat - no messages in 30+ minutes");
-        } else {
-          heartbeatLogger.info(logData, "web gateway heartbeat");
-        }
-      }, heartbeatSeconds * 1000);
-
-      watchdogTimer = setInterval(() => {
-        if (!lastMessageAt) return;
-        const timeSinceLastMessage = Date.now() - lastMessageAt;
-        if (timeSinceLastMessage <= MESSAGE_TIMEOUT_MS) return;
-        const minutesSinceLastMessage = Math.floor(timeSinceLastMessage / 60000);
-        heartbeatLogger.warn(
-          {
-            connectionId,
-            minutesSinceLastMessage,
-            lastMessageAt: new Date(lastMessageAt),
-            messagesHandled: handledMessages,
-          },
-          "Message timeout detected - forcing reconnect",
+      setActiveWebListener(account.accountId, listener);
+      unregisterUnhandled = registerUnhandledRejectionHandler((reason) => {
+        if (!isLikelyWhatsAppCryptoError(reason)) return false;
+        const errorStr = formatError(reason);
+        reconnectLogger.warn(
+          { connectionId, error: errorStr },
+          "web reconnect: unhandled rejection from WhatsApp socket; forcing reconnect",
         );
-        whatsappHeartbeatLog.warn(
-          `No messages received in ${minutesSinceLastMessage}m - restarting connection`,
-        );
-        void closeListener().catch((err) => {
-          logVerbose(`Close listener failed: ${formatError(err)}`);
-        });
         listener.signalClose?.({
           status: 499,
           isLoggedOut: false,
-          error: "watchdog-timeout",
+          error: reason,
         });
-      }, WATCHDOG_CHECK_MS);
-    }
+        return true;
+      });
 
-    whatsappLog.info("Listening for personal WhatsApp inbound messages.");
-    if (process.stdout.isTTY || process.stderr.isTTY) {
-      whatsappLog.raw("Ctrl+C to stop.");
-    }
+      closeListener = async () => {
+        setActiveWebListener(account.accountId, null);
+        if (unregisterUnhandled) {
+          unregisterUnhandled();
+          unregisterUnhandled = null;
+        }
+        if (heartbeat) clearInterval(heartbeat);
+        if (watchdogTimer) clearInterval(watchdogTimer);
+        if (backgroundTasks.size > 0) {
+          await Promise.allSettled(backgroundTasks);
+          backgroundTasks.clear();
+        }
+        try {
+          await listener.close();
+        } catch (err) {
+          logVerbose(`Socket close failed: ${formatError(err)}`);
+        }
+      };
 
-    if (!keepAlive) {
-      await closeListener();
-      return;
-    }
+      if (keepAlive) {
+        heartbeat = setInterval(() => {
+          const authAgeMs = getWebAuthAgeMs(account.authDir);
+          const minutesSinceLastMessage = lastMessageAt
+            ? Math.floor((Date.now() - lastMessageAt) / 60000)
+            : null;
 
-    const reason = await Promise.race([
-      listener.onClose?.catch((err) => {
-        reconnectLogger.error({ error: formatError(err) }, "listener.onClose rejected");
-        return { status: 500, isLoggedOut: false, error: err };
-      }) ?? waitForever(),
-      abortPromise ?? waitForever(),
-    ]);
+          const logData = {
+            connectionId,
+            reconnectAttempts,
+            messagesHandled: handledMessages,
+            lastMessageAt,
+            authAgeMs,
+            uptimeMs: Date.now() - startedAt,
+            ...(minutesSinceLastMessage !== null && minutesSinceLastMessage > 30
+              ? { minutesSinceLastMessage }
+              : {}),
+          };
+
+          if (minutesSinceLastMessage && minutesSinceLastMessage > 30) {
+            heartbeatLogger.warn(logData, "⚠️ web gateway heartbeat - no messages in 30+ minutes");
+          } else {
+            heartbeatLogger.info(logData, "web gateway heartbeat");
+          }
+        }, heartbeatSeconds * 1000);
+
+        watchdogTimer = setInterval(() => {
+          if (!lastMessageAt) return;
+          const timeSinceLastMessage = Date.now() - lastMessageAt;
+          if (timeSinceLastMessage <= MESSAGE_TIMEOUT_MS) return;
+          const minutesSinceLastMessage = Math.floor(timeSinceLastMessage / 60000);
+          heartbeatLogger.warn(
+            {
+              connectionId,
+              minutesSinceLastMessage,
+              lastMessageAt: new Date(lastMessageAt),
+              messagesHandled: handledMessages,
+            },
+            "Message timeout detected - forcing reconnect",
+          );
+          whatsappHeartbeatLog.warn(
+            `No messages received in ${minutesSinceLastMessage}m - restarting connection`,
+          );
+          void closeListener().catch((err) => {
+            logVerbose(`Close listener failed: ${formatError(err)}`);
+          });
+          listener.signalClose?.({
+            status: 499,
+            isLoggedOut: false,
+            error: "watchdog-timeout",
+          });
+        }, WATCHDOG_CHECK_MS);
+      }
+
+      whatsappLog.info("Listening for personal WhatsApp inbound messages.");
+      if (process.stdout.isTTY || process.stderr.isTTY) {
+        whatsappLog.raw("Ctrl+C to stop.");
+      }
+
+      if (!keepAlive) {
+        await closeListener();
+        return;
+      }
+
+      reason = await Promise.race([
+        listener.onClose?.catch((err) => {
+          reconnectLogger.error({ error: formatError(err) }, "listener.onClose rejected");
+          return { status: 500, isLoggedOut: false, error: err };
+        }) ?? waitForever(),
+        abortPromise ?? waitForever(),
+      ]);
+    }
 
     const uptimeMs = Date.now() - startedAt;
     if (uptimeMs > heartbeatSeconds * 1000) {

@@ -2,6 +2,7 @@ import type { AnyMessageContent, proto, WAMessage } from "@whiskeysockets/bailey
 import { DisconnectReason, isJidGroup } from "@whiskeysockets/baileys";
 import { formatLocationText } from "../../channels/location.js";
 import { logVerbose, shouldLogVerbose } from "../../globals.js";
+import { formatDurationMs } from "../../infra/format-duration.js";
 import { recordChannelActivity } from "../../infra/channel-activity.js";
 import { getChildLogger } from "../../logging/logger.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
@@ -34,11 +35,13 @@ export async function monitorWebInbox(options: {
   debounceMs?: number;
   /** Optional debounce gating predicate. */
   shouldDebounce?: (msg: WebInboundMessage) => boolean;
+  proxy?: string;
 }) {
   const inboundLogger = getChildLogger({ module: "web-inbound" });
   const inboundConsoleLog = createSubsystemLogger("gateway/channels/whatsapp").child("inbound");
   const sock = await createWaSocket(false, options.verbose, {
     authDir: options.authDir,
+    proxy: options.proxy,
   });
   await waitForWaConnection(sock);
   const connectedAtMs = Date.now();
@@ -208,8 +211,18 @@ export async function monitorWebInbox(options: {
         logVerbose(`Self-chat mode: skipping read receipt for ${id}`);
       }
 
-      // If this is history/offline catch-up, mark read above but skip auto-reply.
-      if (upsert.type === "append") continue;
+      // If this is history/offline catch-up, only process if recent (e.g. within last 2 minutes).
+      if (upsert.type === "append") {
+        const msgTime = messageTimestampMs ?? 0;
+        const now = Date.now();
+        // If message is older than 2 minutes, skip it.
+        if (now - msgTime > 2 * 60 * 1000) {
+          continue;
+        }
+        if (shouldLogVerbose()) {
+          logVerbose(`Processing recent offline message from ${formatDurationMs(now - msgTime)} ago`);
+        }
+      }
 
       const location = extractLocationData(msg.message ?? undefined);
       const locationText = location ? formatLocationText(location) : undefined;

@@ -36,6 +36,7 @@ export const MoltbotSchema = z
       })
       .strict()
       .optional(),
+    proxy: z.string().optional(),
     env: z
       .object({
         shellEnv: z

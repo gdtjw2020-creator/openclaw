@@ -99,15 +99,18 @@ export async function runEmbeddedPiAgent(
         (params.config?.agents?.defaults?.model?.fallbacks?.length ?? 0) > 0;
       await ensureMoltbotModelsJson(params.config, agentDir);
 
-      const { model, error, authStorage, modelRegistry } = resolveModel(
+      const resolution = resolveModel(
         provider,
         modelId,
         agentDir,
         params.config,
       );
-      if (!model) {
-        throw new Error(error ?? `Unknown model: ${provider}/${modelId}`);
+      if (!resolution.model) {
+        throw new Error(resolution.error ?? `Unknown model: ${provider}/${modelId}`);
       }
+      // Create a shallow copy to allow context window overrides without side effects
+      const model = { ...resolution.model };
+      const { authStorage, modelRegistry } = resolution;
 
       const ctxInfo = resolveContextWindowInfo({
         cfg: params.config,
@@ -121,6 +124,15 @@ export async function runEmbeddedPiAgent(
         warnBelowTokens: CONTEXT_WINDOW_WARN_BELOW_TOKENS,
         hardMinTokens: CONTEXT_WINDOW_HARD_MIN_TOKENS,
       });
+      // Enforce the computed limit on the model object so runEmbeddedAttempt prunes history correctly
+      if (ctxGuard.tokens < (model.contextWindow ?? Number.POSITIVE_INFINITY)) {
+        model.contextWindow = ctxGuard.tokens;
+      }
+
+      log.info(
+        `[ContextGuard] info: ${provider}/${modelId} tokens=${ctxGuard.tokens} limit=${ctxInfo.tokens} source=${ctxGuard.source} warn=${ctxGuard.shouldWarn} block=${ctxGuard.shouldBlock}`,
+      );
+
       if (ctxGuard.shouldWarn) {
         log.warn(
           `low context window: ${provider}/${modelId} ctx=${ctxGuard.tokens} (warn<${CONTEXT_WINDOW_WARN_BELOW_TOKENS}) source=${ctxGuard.source}`,
@@ -356,12 +368,26 @@ export async function runEmbeddedPiAgent(
             enforceFinalTag: params.enforceFinalTag,
           });
 
-          const { aborted, promptError, timedOut, sessionIdUsed, lastAssistant } = attempt;
+          const { aborted, promptError: rawPromptError, timedOut, sessionIdUsed, lastAssistant } = attempt;
+
+          // Check if lastAssistant has a context overflow error (common for some providers/proxies)
+          // If so, treat it as a promptError to trigger auto-compaction retry logic
+          let promptError = rawPromptError;
+          if (!promptError && !aborted && lastAssistant?.stopReason === "error") {
+            const assistantErrorText = lastAssistant.errorMessage || "";
+            if (isContextOverflowError(assistantErrorText)) {
+              promptError = new Error(assistantErrorText);
+              // Clear lastAssistant so we don't return it as a valid response
+              attempt.lastAssistant = undefined;
+            }
+          }
 
           if (promptError && !aborted) {
             const errorText = describeUnknownError(promptError);
             if (isContextOverflowError(errorText)) {
               const isCompactionFailure = isCompactionFailureError(errorText);
+
+
               // Attempt auto-compaction on context overflow (not compaction_failure)
               if (!isCompactionFailure && !overflowCompactionAttempted) {
                 log.warn(
@@ -585,9 +611,9 @@ export async function runEmbeddedPiAgent(
               const message =
                 (lastAssistant
                   ? formatAssistantErrorText(lastAssistant, {
-                      cfg: params.config,
-                      sessionKey: params.sessionKey ?? params.sessionId,
-                    })
+                    cfg: params.config,
+                    sessionKey: params.sessionKey ?? params.sessionId,
+                  })
                   : undefined) ||
                 lastAssistant?.errorMessage?.trim() ||
                 (timedOut
@@ -658,12 +684,12 @@ export async function runEmbeddedPiAgent(
               stopReason: attempt.clientToolCall ? "tool_calls" : undefined,
               pendingToolCalls: attempt.clientToolCall
                 ? [
-                    {
-                      id: `call_${Date.now()}`,
-                      name: attempt.clientToolCall.name,
-                      arguments: JSON.stringify(attempt.clientToolCall.params),
-                    },
-                  ]
+                  {
+                    id: `call_${Date.now()}`,
+                    name: attempt.clientToolCall.name,
+                    arguments: JSON.stringify(attempt.clientToolCall.params),
+                  },
+                ]
                 : undefined,
             },
             didSendViaMessagingTool: attempt.didSendViaMessagingTool,

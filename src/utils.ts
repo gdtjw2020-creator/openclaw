@@ -215,18 +215,24 @@ export function resolveConfigDir(
   env: NodeJS.ProcessEnv = process.env,
   homedir: () => string = os.homedir,
 ): string {
-  const override = env.MOLTBOT_STATE_DIR?.trim() || env.CLAWDBOT_STATE_DIR?.trim();
+  const override =
+    env.OPENCLAW_STATE_DIR?.trim() ||
+    env.MOLTBOT_STATE_DIR?.trim() ||
+    env.CLAWDBOT_STATE_DIR?.trim();
   if (override) return resolveUserPath(override);
-  const legacyDir = path.join(homedir(), ".clawdbot");
-  const newDir = path.join(homedir(), ".moltbot");
+
+  const openclawDir = path.join(homedir(), ".openclaw");
+  const moltbotDir = path.join(homedir(), ".moltbot");
+  const clawdbotDir = path.join(homedir(), ".clawdbot");
+
   try {
-    const hasLegacy = fs.existsSync(legacyDir);
-    const hasNew = fs.existsSync(newDir);
-    if (!hasLegacy && hasNew) return newDir;
+    if (fs.existsSync(openclawDir)) return openclawDir;
+    if (fs.existsSync(moltbotDir)) return moltbotDir;
+    if (fs.existsSync(clawdbotDir)) return clawdbotDir;
   } catch {
     // best-effort
   }
-  return legacyDir;
+  return openclawDir;
 }
 
 export function resolveHomeDir(): string | undefined {

@@ -17,12 +17,18 @@ export function resolveIsNixMode(env: NodeJS.ProcessEnv = process.env): boolean 
 export const isNixMode = resolveIsNixMode();
 
 const LEGACY_STATE_DIRNAME = ".clawdbot";
-const NEW_STATE_DIRNAME = ".moltbot";
-const CONFIG_FILENAME = "moltbot.json";
+const MID_STATE_DIRNAME = ".moltbot";
+const NEW_STATE_DIRNAME = ".openclaw";
+const CONFIG_FILENAME = "openclaw.json";
+const MID_CONFIG_FILENAME = "moltbot.json";
 const LEGACY_CONFIG_FILENAME = "clawdbot.json";
 
 function legacyStateDir(homedir: () => string = os.homedir): string {
   return path.join(homedir(), LEGACY_STATE_DIRNAME);
+}
+
+function midStateDir(homedir: () => string = os.homedir): string {
+  return path.join(homedir(), MID_STATE_DIRNAME);
 }
 
 function newStateDir(homedir: () => string = os.homedir): string {
@@ -39,22 +45,28 @@ export function resolveNewStateDir(homedir: () => string = os.homedir): string {
 
 /**
  * State directory for mutable data (sessions, logs, caches).
- * Can be overridden via MOLTBOT_STATE_DIR (preferred) or CLAWDBOT_STATE_DIR (legacy).
- * Default: ~/.clawdbot (legacy default for compatibility)
- * If ~/.moltbot exists and ~/.clawdbot does not, prefer ~/.moltbot.
+ * Can be overridden via OPENCLAW_STATE_DIR (preferred), MOLTBOT_STATE_DIR, or CLAWDBOT_STATE_DIR.
+ * Default: ~/.openclaw (falls back to ~/.moltbot or ~/.clawdbot if they exist and new one doesn't)
  */
 export function resolveStateDir(
   env: NodeJS.ProcessEnv = process.env,
   homedir: () => string = os.homedir,
 ): string {
-  const override = env.MOLTBOT_STATE_DIR?.trim() || env.CLAWDBOT_STATE_DIR?.trim();
+  const override =
+    env.OPENCLAW_STATE_DIR?.trim() ||
+    env.MOLTBOT_STATE_DIR?.trim() ||
+    env.CLAWDBOT_STATE_DIR?.trim();
   if (override) return resolveUserPath(override);
-  const legacyDir = legacyStateDir(homedir);
+
   const newDir = newStateDir(homedir);
-  const hasLegacy = fs.existsSync(legacyDir);
-  const hasNew = fs.existsSync(newDir);
-  if (!hasLegacy && hasNew) return newDir;
-  return legacyDir;
+  const midDir = midStateDir(homedir);
+  const legacyDir = legacyStateDir(homedir);
+
+  if (fs.existsSync(newDir)) return newDir;
+  if (fs.existsSync(midDir)) return midDir;
+  if (fs.existsSync(legacyDir)) return legacyDir;
+
+  return newDir;
 }
 
 function resolveUserPath(input: string): string {
@@ -78,7 +90,10 @@ export function resolveCanonicalConfigPath(
   env: NodeJS.ProcessEnv = process.env,
   stateDir: string = resolveStateDir(env, os.homedir),
 ): string {
-  const override = env.MOLTBOT_CONFIG_PATH?.trim() || env.CLAWDBOT_CONFIG_PATH?.trim();
+  const override =
+    env.OPENCLAW_CONFIG_PATH?.trim() ||
+    env.MOLTBOT_CONFIG_PATH?.trim() ||
+    env.CLAWDBOT_CONFIG_PATH?.trim();
   if (override) return resolveUserPath(override);
   return path.join(stateDir, CONFIG_FILENAME);
 }
@@ -111,11 +126,18 @@ export function resolveConfigPath(
   stateDir: string = resolveStateDir(env, os.homedir),
   homedir: () => string = os.homedir,
 ): string {
-  const override = env.MOLTBOT_CONFIG_PATH?.trim() || env.CLAWDBOT_CONFIG_PATH?.trim();
+  const override =
+    env.OPENCLAW_CONFIG_PATH?.trim() ||
+    env.MOLTBOT_CONFIG_PATH?.trim() ||
+    env.CLAWDBOT_CONFIG_PATH?.trim();
   if (override) return resolveUserPath(override);
-  const stateOverride = env.MOLTBOT_STATE_DIR?.trim() || env.CLAWDBOT_STATE_DIR?.trim();
+  const stateOverride =
+    env.OPENCLAW_STATE_DIR?.trim() ||
+    env.MOLTBOT_STATE_DIR?.trim() ||
+    env.CLAWDBOT_STATE_DIR?.trim();
   const candidates = [
     path.join(stateDir, CONFIG_FILENAME),
+    path.join(stateDir, MID_CONFIG_FILENAME),
     path.join(stateDir, LEGACY_CONFIG_FILENAME),
   ];
   const existing = candidates.find((candidate) => {
@@ -144,24 +166,40 @@ export function resolveDefaultConfigCandidates(
   env: NodeJS.ProcessEnv = process.env,
   homedir: () => string = os.homedir,
 ): string[] {
-  const explicit = env.MOLTBOT_CONFIG_PATH?.trim() || env.CLAWDBOT_CONFIG_PATH?.trim();
+  const explicit =
+    env.OPENCLAW_CONFIG_PATH?.trim() ||
+    env.MOLTBOT_CONFIG_PATH?.trim() ||
+    env.CLAWDBOT_CONFIG_PATH?.trim();
   if (explicit) return [resolveUserPath(explicit)];
 
   const candidates: string[] = [];
+  const openclawStateDir = env.OPENCLAW_STATE_DIR?.trim();
+  if (openclawStateDir) {
+    candidates.push(path.join(resolveUserPath(openclawStateDir), CONFIG_FILENAME));
+    candidates.push(path.join(resolveUserPath(openclawStateDir), MID_CONFIG_FILENAME));
+    candidates.push(path.join(resolveUserPath(openclawStateDir), LEGACY_CONFIG_FILENAME));
+  }
   const moltbotStateDir = env.MOLTBOT_STATE_DIR?.trim();
   if (moltbotStateDir) {
     candidates.push(path.join(resolveUserPath(moltbotStateDir), CONFIG_FILENAME));
+    candidates.push(path.join(resolveUserPath(moltbotStateDir), MID_CONFIG_FILENAME));
     candidates.push(path.join(resolveUserPath(moltbotStateDir), LEGACY_CONFIG_FILENAME));
   }
   const legacyStateDirOverride = env.CLAWDBOT_STATE_DIR?.trim();
   if (legacyStateDirOverride) {
     candidates.push(path.join(resolveUserPath(legacyStateDirOverride), CONFIG_FILENAME));
+    candidates.push(path.join(resolveUserPath(legacyStateDirOverride), MID_CONFIG_FILENAME));
     candidates.push(path.join(resolveUserPath(legacyStateDirOverride), LEGACY_CONFIG_FILENAME));
   }
 
   candidates.push(path.join(newStateDir(homedir), CONFIG_FILENAME));
+  candidates.push(path.join(newStateDir(homedir), MID_CONFIG_FILENAME));
   candidates.push(path.join(newStateDir(homedir), LEGACY_CONFIG_FILENAME));
+  candidates.push(path.join(midStateDir(homedir), CONFIG_FILENAME));
+  candidates.push(path.join(midStateDir(homedir), MID_CONFIG_FILENAME));
+  candidates.push(path.join(midStateDir(homedir), LEGACY_CONFIG_FILENAME));
   candidates.push(path.join(legacyStateDir(homedir), CONFIG_FILENAME));
+  candidates.push(path.join(legacyStateDir(homedir), MID_CONFIG_FILENAME));
   candidates.push(path.join(legacyStateDir(homedir), LEGACY_CONFIG_FILENAME));
   return candidates;
 }
@@ -175,7 +213,7 @@ export const DEFAULT_GATEWAY_PORT = 18789;
 export function resolveGatewayLockDir(tmpdir: () => string = os.tmpdir): string {
   const base = tmpdir();
   const uid = typeof process.getuid === "function" ? process.getuid() : undefined;
-  const suffix = uid != null ? `moltbot-${uid}` : "moltbot";
+  const suffix = uid != null ? `openclaw-${uid}` : "openclaw";
   return path.join(base, suffix);
 }
 

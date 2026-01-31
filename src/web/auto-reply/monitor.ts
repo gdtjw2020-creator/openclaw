@@ -4,7 +4,7 @@ import { hasControlCommand } from "../../auto-reply/command-detection.js";
 import { resolveInboundDebounceMs } from "../../auto-reply/inbound-debounce.js";
 import { waitForever } from "../../cli/wait.js";
 import { loadConfig } from "../../config/config.js";
-import { logVerbose } from "../../globals.js";
+import { danger, logVerbose } from "../../globals.js";
 import { formatDurationMs } from "../../infra/format-duration.js";
 import { enqueueSystemEvent } from "../../infra/system-events.js";
 import { registerUnhandledRejectionHandler } from "../../infra/unhandled-rejections.js";
@@ -397,6 +397,39 @@ export async function monitorWebChannel(
     reconnectAttempts += 1;
     status.reconnectAttempts = reconnectAttempts;
     emitStatus();
+
+    // Special handling for 428 Precondition Required: The session is corrupted/invalidated server-side.
+    // Retrying will never work; we must clear state and ask for a new login.
+    if (statusCode === 428) {
+      reconnectLogger.error(
+        { connectionId, status: statusCode },
+        "web reconnect: fatal session error (428); clearing credentials",
+      );
+      runtime.error(
+        danger(
+          `WhatsApp session invalidated (Status 428). Automatically resetting credentials to fix the loop.`,
+        ),
+      );
+      try {
+        await import("../session.js").then((mod) =>
+          mod.logoutWeb({
+            authDir: account.authDir,
+            isLegacyAuthDir: account.isLegacyAuthDir,
+            runtime,
+          }),
+        );
+        runtime.error(
+          danger(
+            `\n⚠️  SESSION RESET COMPLETE.\nTo restore connection, you MUST scan a new QR code:\n\n   Run:  ${formatCliCommand("moltbot channels login --channel whatsapp")}\n`,
+          ),
+        );
+      } catch (err) {
+        runtime.error(`Failed to auto-reset session: ${String(err)}`);
+      }
+      await closeListener();
+      break; // Stop retrying
+    }
+
     if (reconnectPolicy.maxAttempts > 0 && reconnectAttempts >= reconnectPolicy.maxAttempts) {
       reconnectLogger.warn(
         {

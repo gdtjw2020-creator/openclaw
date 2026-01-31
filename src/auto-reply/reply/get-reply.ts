@@ -50,10 +50,10 @@ export async function getReplyFromConfig(
     const heartbeatRaw = agentCfg?.heartbeat?.model?.trim() ?? "";
     const heartbeatRef = heartbeatRaw
       ? resolveModelRefFromString({
-          raw: heartbeatRaw,
-          defaultProvider,
-          aliasIndex,
-        })
+        raw: heartbeatRaw,
+        defaultProvider,
+        aliasIndex,
+      })
       : null;
     if (heartbeatRef) {
       provider = heartbeatRef.ref.provider;
@@ -75,6 +75,7 @@ export async function getReplyFromConfig(
     typeof configuredTypingSeconds === "number" ? configuredTypingSeconds : 6;
   const typing = createTypingController({
     onReplyStart: opts?.onReplyStart,
+    onReplyStop: opts?.onReplyStop,
     typingIntervalSeconds,
     silentToken: SILENT_REPLY_TOKEN,
     log: defaultRuntime.log,

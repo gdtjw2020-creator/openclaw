@@ -13,6 +13,7 @@ export type TypingController = {
 
 export function createTypingController(params: {
   onReplyStart?: () => Promise<void> | void;
+  onReplyStop?: () => Promise<void> | void;
   typingIntervalSeconds?: number;
   typingTtlMs?: number;
   silentToken?: string;
@@ -20,6 +21,7 @@ export function createTypingController(params: {
 }): TypingController {
   const {
     onReplyStart,
+    onReplyStop,
     typingIntervalSeconds = 6,
     typingTtlMs = 2 * 60_000,
     silentToken = SILENT_REPLY_TOKEN,
@@ -58,6 +60,9 @@ export function createTypingController(params: {
     if (typingTimer) {
       clearInterval(typingTimer);
       typingTimer = undefined;
+    }
+    if (started) {
+      void onReplyStop?.();
     }
     resetCycle();
     sealed = true;

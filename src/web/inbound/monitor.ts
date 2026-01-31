@@ -267,6 +267,13 @@ export async function monitorWebInbox(options: {
           logVerbose(`Presence update failed: ${String(err)}`);
         }
       };
+      const sendPaused = async () => {
+        try {
+          await sock.sendPresenceUpdate("paused", chatJid);
+        } catch (err) {
+          logVerbose(`Presence update (paused) failed: ${String(err)}`);
+        }
+      };
       const reply = async (text: string) => {
         await sock.sendMessage(chatJid, { text });
       };
@@ -307,6 +314,7 @@ export async function monitorWebInbox(options: {
         selfE164,
         location: location ?? undefined,
         sendComposing,
+        sendPaused,
         reply,
         sendMedia,
         mediaPath,

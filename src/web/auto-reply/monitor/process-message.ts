@@ -221,11 +221,11 @@ export async function processMessage(params: {
   const dmRouteTarget =
     params.msg.chatType !== "group"
       ? (() => {
-          if (params.msg.senderE164) return normalizeE164(params.msg.senderE164);
-          // In direct chats, `msg.from` is already the canonical conversation id.
-          if (params.msg.from.includes("@")) return jidToE164(params.msg.from);
-          return normalizeE164(params.msg.from);
-        })()
+        if (params.msg.senderE164) return normalizeE164(params.msg.senderE164);
+        // In direct chats, `msg.from` is already the canonical conversation id.
+        if (params.msg.from.includes("@")) return jidToE164(params.msg.from);
+        return normalizeE164(params.msg.from);
+      })()
       : undefined;
 
   const textLimit = params.maxMediaTextChunkLimit ?? resolveTextChunkLimit(params.cfg, "whatsapp");
@@ -380,6 +380,7 @@ export async function processMessage(params: {
         );
       },
       onReplyStart: params.msg.sendComposing,
+      onReplyStop: params.msg.sendPaused,
     },
     replyOptions: {
       disableBlockStreaming:

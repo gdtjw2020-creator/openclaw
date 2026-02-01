@@ -3,8 +3,19 @@ FROM my-openclaw:prod
 # Switch to root to install system dependencies
 USER root
 
-# Install Chromium and Sandbox
-RUN apt-get update && apt-get install -y chromium chromium-sandbox
+# Install Chromium, Sandbox, and DBus dependencies
+# dbus-x11 and libx11-xcb1 are often required for headless chrome to launch correctly
+RUN apt-get update && apt-get install -y \
+    chromium \
+    chromium-sandbox \
+    dbus \
+    dbus-x11 \
+    libx11-xcb1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Generate machine-id which is required for dbus to function
+# This prevents "D-Bus library appears to be incorrectly set up" errors
+RUN mkdir -p /var/run/dbus && dbus-uuidgen > /var/lib/dbus/machine-id
 
 # Switch back to the standard user
 USER node

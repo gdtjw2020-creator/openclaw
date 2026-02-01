@@ -4,8 +4,25 @@ services:
       context: .
       dockerfile: Dockerfile.custom
     image: my-openclaw:custom
+    environment:
+      CLAWDBOT_STATE_DIR: /home/node/.openclaw
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+      # Increase Node memory limit for browser handling
+      NODE_OPTIONS: --max-old-space-size=4096
+      # DBus setup
+      DBUS_SESSION_BUS_ADDRESS: "autolaunch:"
+    volumes:
+      - ${CLAWDBOT_CONFIG_DIR}:/home/node/.openclaw
+      - ${CLAWDBOT_CONFIG_DIR}:/home/node/.clawdbot
+
   moltbot-cli:
     build:
       context: .
       dockerfile: Dockerfile.custom
     image: my-openclaw:custom
+    environment:
+      CLAWDBOT_STATE_DIR: /home/node/.openclaw
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+    volumes:
+      - ${CLAWDBOT_CONFIG_DIR}:/home/node/.openclaw
+      - ${CLAWDBOT_CONFIG_DIR}:/home/node/.clawdbot

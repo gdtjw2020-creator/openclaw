@@ -1,10 +1,7 @@
 ---
 name: obsidian
-description: Work with Obsidian vaults (plain Markdown notes) and automate via obsidian-cli.
-homepage: https://help.obsidian.md
-metadata: {"moltbot":{"emoji":"💎","requires":{"bins":["obsidian-cli"]},"install":[{"id":"brew","kind":"brew","formula":"yakitrak/yakitrak/obsidian-cli","bins":["obsidian-cli"],"label":"Install obsidian-cli (brew)"}]}}
+description: "Work with Obsidian vaults (plain Markdown notes) and automate via obsidian-cli."
 ---
-
 # Obsidian
 
 Obsidian vault = a normal folder on disk.

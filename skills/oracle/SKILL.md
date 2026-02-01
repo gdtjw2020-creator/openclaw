@@ -1,10 +1,7 @@
 ---
 name: oracle
-description: Best practices for using the oracle CLI (prompt + file bundling, engines, sessions, and file attachment patterns).
-homepage: https://askoracle.dev
-metadata: {"moltbot":{"emoji":"🧿","requires":{"bins":["oracle"]},"install":[{"id":"node","kind":"node","package":"@steipete/oracle","bins":["oracle"],"label":"Install oracle (node)"}]}}
+description: "Best practices for using the oracle CLI (prompt + file bundling, engines, sessions, and file attachment patterns)."
 ---
-
 # oracle — best use
 
 Oracle bundles your prompt + selected files into one “one-shot” request so another model can answer with real repo context (API or browser automation). Treat output as advisory: verify against code + tests.

@@ -1,9 +1,7 @@
 ---
 name: voice-call
-description: Start voice calls via the Moltbot voice-call plugin.
-metadata: {"moltbot":{"emoji":"📞","skillKey":"voice-call","requires":{"config":["plugins.entries.voice-call.enabled"]}}}
+description: "Start voice calls via the Moltbot voice-call plugin."
 ---
-
 # Voice Call
 
 Use the voice-call plugin to start or inspect calls (Twilio, Telnyx, Plivo, or mock).

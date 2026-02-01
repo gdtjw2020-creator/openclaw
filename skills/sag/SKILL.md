@@ -1,10 +1,7 @@
 ---
 name: sag
-description: ElevenLabs text-to-speech with mac-style say UX.
-homepage: https://sag.sh
-metadata: {"moltbot":{"emoji":"🗣️","requires":{"bins":["sag"],"env":["ELEVENLABS_API_KEY"]},"primaryEnv":"ELEVENLABS_API_KEY","install":[{"id":"brew","kind":"brew","formula":"steipete/tap/sag","bins":["sag"],"label":"Install sag (brew)"}]}}
+description: "ElevenLabs text-to-speech with mac-style say UX."
 ---
-
 # sag
 
 Use `sag` for ElevenLabs TTS with local playback.

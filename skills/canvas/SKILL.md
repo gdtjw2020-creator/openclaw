@@ -1,36 +1,8 @@
-# Canvas Skill
-
-Display HTML content on connected Moltbot nodes (Mac app, iOS, Android).
-
-## Overview
-
-The canvas tool lets you present web content on any connected node's canvas view. Great for:
-- Displaying games, visualizations, dashboards
-- Showing generated HTML content
-- Interactive demos
-
-## How It Works
-
-### Architecture
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐
-│  Canvas Host    │────▶│   Node Bridge    │────▶│  Node App   │
-│  (HTTP Server)  │     │  (TCP Server)    │     │ (Mac/iOS/   │
-│  Port 18793     │     │  Port 18790      │     │  Android)   │
-└─────────────────┘     └──────────────────┘     └─────────────┘
-```
-
-1. **Canvas Host Server**: Serves static HTML/CSS/JS files from `canvasHost.root` directory
-2. **Node Bridge**: Communicates canvas URLs to connected nodes
-3. **Node Apps**: Render the content in a WebView
-
-### Tailscale Integration
-
-The canvas host server binds based on `gateway.bind` setting:
-
-| Bind Mode | Server Binds To | Canvas URL Uses |
-|-----------|-----------------|-----------------|
+---
+name: canvas
+description: "Custom OpenClaw Skill."
+---
+-----|-----------------|-----------------|
 | `loopback` | 127.0.0.1 | localhost (local only) |
 | `lan` | LAN interface | LAN IP address |
 | `tailnet` | Tailscale interface | Tailscale hostname |

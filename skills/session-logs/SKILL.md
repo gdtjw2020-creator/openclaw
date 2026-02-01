@@ -1,9 +1,7 @@
 ---
 name: session-logs
-description: Search and analyze your own session logs (older/parent conversations) using jq.
-metadata: {"moltbot":{"emoji":"📜","requires":{"bins":["jq","rg"]}}}
+description: "Search and analyze your own session logs (older/parent conversations) using jq."
 ---
-
 # session-logs
 
 Search your complete conversation history stored in session JSONL files. Use this when a user references older/parent conversations or asks what was said before.

@@ -1,10 +1,7 @@
 ---
 name: songsee
-description: Generate spectrograms and feature-panel visualizations from audio with the songsee CLI.
-homepage: https://github.com/steipete/songsee
-metadata: {"moltbot":{"emoji":"🌊","requires":{"bins":["songsee"]},"install":[{"id":"brew","kind":"brew","formula":"steipete/tap/songsee","bins":["songsee"],"label":"Install songsee (brew)"}]}}
+description: "Generate spectrograms and feature-panel visualizations from audio with the songsee CLI."
 ---
-
 # songsee
 
 Generate spectrograms + feature panels from audio.

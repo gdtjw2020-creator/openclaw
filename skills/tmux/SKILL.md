@@ -1,9 +1,7 @@
 ---
 name: tmux
-description: Remote-control tmux sessions for interactive CLIs by sending keystrokes and scraping pane output.
-metadata: {"moltbot":{"emoji":"🧵","os":["darwin","linux"],"requires":{"bins":["tmux"]}}}
+description: "Remote-control tmux sessions for interactive CLIs by sending keystrokes and scraping pane output."
 ---
-
 # tmux Skill (Moltbot)
 
 Use tmux only when you need an interactive TTY. Prefer exec background mode for long-running, non-interactive tasks.

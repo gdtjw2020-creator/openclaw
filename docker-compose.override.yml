@@ -7,12 +7,13 @@ services:
     environment:
       CLAWDBOT_STATE_DIR: /home/node/.openclaw
       OPENCLAW_STATE_DIR: /home/node/.openclaw
+      CLAWDBOT_BUNDLED_SKILLS_DIR: /app/skills
+      CLAWDBOT_SKILLS_DIR: /app/skills
       NODE_OPTIONS: --max-old-space-size=4096
       DBUS_SESSION_BUS_ADDRESS: "autolaunch:"
     volumes:
       - ${CLAWDBOT_CONFIG_DIR}:/home/node/.openclaw
       - ${CLAWDBOT_CONFIG_DIR}:/home/node/.clawdbot
-      # Mount source code and skills for hot-reloading/updates
       - ./skills:/app/skills
       - ./src:/app/src
 
@@ -24,6 +25,8 @@ services:
     environment:
       CLAWDBOT_STATE_DIR: /home/node/.openclaw
       OPENCLAW_STATE_DIR: /home/node/.openclaw
+      CLAWDBOT_BUNDLED_SKILLS_DIR: /app/skills
+      CLAWDBOT_SKILLS_DIR: /app/skills
     volumes:
       - ${CLAWDBOT_CONFIG_DIR}:/home/node/.openclaw
       - ${CLAWDBOT_CONFIG_DIR}:/home/node/.clawdbot

@@ -1,10 +1,7 @@
 ---
 name: nano-banana-pro
-description: Generate or edit images via Gemini 3 Pro Image (Nano Banana Pro).
-homepage: https://ai.google.dev/
-metadata: {"moltbot":{"emoji":"🍌","requires":{"bins":["uv"],"env":["GEMINI_API_KEY"]},"primaryEnv":"GEMINI_API_KEY","install":[{"id":"uv-brew","kind":"brew","formula":"uv","bins":["uv"],"label":"Install uv (brew)"}]}}
+description: "Generate or edit images via Gemini 3 Pro Image (Nano Banana Pro)."
 ---
-
 # Nano Banana Pro (Gemini 3 Pro Image)
 
 Use the bundled script to generate or edit images.

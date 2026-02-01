@@ -1,10 +1,7 @@
 ---
 name: trello
-description: Manage Trello boards, lists, and cards via the Trello REST API.
-homepage: https://developer.atlassian.com/cloud/trello/rest/
-metadata: {"moltbot":{"emoji":"📋","requires":{"bins":["jq"],"env":["TRELLO_API_KEY","TRELLO_TOKEN"]}}}
+description: "Manage Trello boards, lists, and cards via the Trello REST API."
 ---
-
 # Trello Skill
 
 Manage Trello boards, lists, and cards directly from Moltbot.

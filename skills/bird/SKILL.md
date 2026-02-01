@@ -1,10 +1,7 @@
 ---
 name: bird
-description: X/Twitter CLI for reading, searching, posting, and engagement via cookies.
-homepage: https://bird.fast
-metadata: {"moltbot":{"emoji":"🐦","requires":{"bins":["bird"]},"install":[{"id":"brew","kind":"brew","formula":"steipete/tap/bird","bins":["bird"],"label":"Install bird (brew)","os":["darwin"]},{"id":"npm","kind":"node","package":"@steipete/bird","bins":["bird"],"label":"Install bird (npm)"}]}}
+description: "X/Twitter CLI for reading, searching, posting, and engagement via cookies."
 ---
-
 # bird 🐦
 
 Fast X/Twitter CLI using GraphQL + cookie auth.

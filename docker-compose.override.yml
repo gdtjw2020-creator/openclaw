@@ -1,0 +1,11 @@
+services:
+  moltbot-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.custom
+    image: my-openclaw:custom
+  moltbot-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile.custom
+    image: my-openclaw:custom

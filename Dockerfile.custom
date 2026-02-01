@@ -1,0 +1,10 @@
+FROM my-openclaw:prod
+
+# Switch to root to install system dependencies
+USER root
+
+# Install Chromium and Sandbox
+RUN apt-get update && apt-get install -y chromium chromium-sandbox
+
+# Switch back to the standard user
+USER node

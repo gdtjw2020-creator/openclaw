@@ -254,7 +254,7 @@ export async function optimizeImageToJpeg(
     }
   }
   const sides = [2048, 1536, 1280, 1024, 800];
-  const qualities = [80, 70, 60, 50, 40];
+  const qualities = [80, 70, 60, 50]; // Minimum quality 50 to avoid over-compression
   let smallest: {
     buffer: Buffer;
     size: number;

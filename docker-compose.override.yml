@@ -1,19 +1,17 @@
 services:
-  moltbot-gateway:
+  openclaw-gateway:
     build:
       context: .
       dockerfile: Dockerfile.custom
     image: my-openclaw:custom
     environment:
-      CLAWDBOT_STATE_DIR: /home/node/.openclaw
       OPENCLAW_STATE_DIR: /home/node/.openclaw
-      CLAWDBOT_BUNDLED_SKILLS_DIR: /app/skills
-      CLAWDBOT_SKILLS_DIR: /app/skills
+      OPENCLAW_BUNDLED_SKILLS_DIR: /app/skills
+      OPENCLAW_SKILLS_DIR: /app/skills
       NODE_OPTIONS: --max-old-space-size=6144
       DBUS_SESSION_BUS_ADDRESS: unix:path=/run/dbus/system_bus_socket
     volumes:
-      - ${CLAWDBOT_CONFIG_DIR}:/home/node/.openclaw
-      - ${CLAWDBOT_CONFIG_DIR}:/home/node/.clawdbot
+      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
       - ./skills:/app/skills
       - ./src:/app/src
     # 内存限制：5GB 内存 + 1GB swap（虚拟内存）
@@ -28,23 +26,20 @@ services:
     memswap_limit: 6144M
     # 健康检查：每30秒检查一次，超时10秒，连续3次失败则标记为不健康
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:18789/__moltbot__/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:18789/__openclaw__/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
 
-  moltbot-cli:
+  openclaw-cli:
     build:
       context: .
       dockerfile: Dockerfile.custom
     image: my-openclaw:custom
     environment:
-      CLAWDBOT_STATE_DIR: /home/node/.openclaw
       OPENCLAW_STATE_DIR: /home/node/.openclaw
-      CLAWDBOT_BUNDLED_SKILLS_DIR: /app/skills
-      CLAWDBOT_SKILLS_DIR: /app/skills
+      OPENCLAW_BUNDLED_SKILLS_DIR: /app/skills
+      OPENCLAW_SKILLS_DIR: /app/skills
     volumes:
-      - ${CLAWDBOT_CONFIG_DIR}:/home/node/.openclaw
-      - ${CLAWDBOT_CONFIG_DIR}:/home/node/.clawdbot
-      - ./skills:/app/skills
+      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw

@@ -3,19 +3,37 @@ FROM my-openclaw:prod
 # Switch to root to install system dependencies
 USER root
 
-# Install Chromium, Sandbox, and DBus dependencies
-# dbus-x11 and libx11-xcb1 are often required for headless chrome to launch correctly
-RUN apt-get update && apt-get install -y \
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Chromium, Xvfb (virtual display), and all required dependencies
+# Based on the official Dockerfile.sandbox-browser
+RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     chromium-sandbox \
+    curl \
     dbus \
     dbus-x11 \
+    fonts-liberation \
+    fonts-noto-color-emoji \
     libx11-xcb1 \
+    socat \
+    xvfb \
     && rm -rf /var/lib/apt/lists/*
 
 # Generate machine-id which is required for dbus to function
-# This prevents "D-Bus library appears to be incorrectly set up" errors
 RUN mkdir -p /var/run/dbus && dbus-uuidgen > /var/lib/dbus/machine-id
+
+# Create X11 socket directory with proper permissions (needed for Xvfb as non-root)
+RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
+
+# Copy entrypoint script
+COPY docker-entrypoint-custom.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Switch back to the standard user
 USER node
+
+# Set default display for the container
+ENV DISPLAY=:99
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

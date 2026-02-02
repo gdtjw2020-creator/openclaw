@@ -4,6 +4,10 @@ services:
       context: .
       dockerfile: Dockerfile.custom
     image: my-openclaw:custom
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     environment:
       OPENCLAW_STATE_DIR: /home/node/.openclaw
       OPENCLAW_BUNDLED_SKILLS_DIR: /app/skills
@@ -37,6 +41,10 @@ services:
       context: .
       dockerfile: Dockerfile.custom
     image: my-openclaw:custom
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     environment:
       OPENCLAW_STATE_DIR: /home/node/.openclaw
       OPENCLAW_BUNDLED_SKILLS_DIR: /app/skills

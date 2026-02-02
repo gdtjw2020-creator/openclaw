@@ -61,6 +61,25 @@ export function resolveClawdUserDataDir(profileName = DEFAULT_CLAWD_BROWSER_PROF
   return path.join(CONFIG_DIR, "browser", profileName, "user-data");
 }
 
+/**
+ * Remove stale Chromium singleton lock files that prevent launching when the
+ * previous process crashed or was killed without cleanup.
+ */
+function clearStaleSingletonLocks(userDataDir: string) {
+  const lockFiles = ["SingletonLock", "SingletonCookie", "SingletonSocket"];
+  for (const name of lockFiles) {
+    const lockPath = path.join(userDataDir, name);
+    try {
+      if (fs.existsSync(lockPath)) {
+        fs.unlinkSync(lockPath);
+        log.debug(`Removed stale lock file: ${lockPath}`);
+      }
+    } catch (err) {
+      log.warn(`Failed to remove lock file ${lockPath}: ${String(err)}`);
+    }
+  }
+}
+
 function cdpUrlForPort(cdpPort: number) {
   return `http://127.0.0.1:${cdpPort}`;
 }
@@ -168,6 +187,9 @@ export async function launchClawdChrome(
 
   const userDataDir = resolveClawdUserDataDir(profile.name);
   fs.mkdirSync(userDataDir, { recursive: true });
+
+  // Clear stale singleton locks from previous crashed/killed Chrome instances
+  clearStaleSingletonLocks(userDataDir);
 
   const needsDecorate = !isProfileDecorated(
     userDataDir,

@@ -1,7 +1,10 @@
 ---
 name: bird
-description: "X/Twitter CLI for reading, searching, posting, and engagement via cookies."
+description: X/Twitter CLI for reading, searching, posting, and engagement via cookies.
+homepage: https://bird.fast
+metadata: {"openclaw":{"emoji":"🐦","requires":{"bins":["bird"]},"install":[{"id":"brew","kind":"brew","formula":"steipete/tap/bird","bins":["bird"],"label":"Install bird (brew)","os":["darwin"]},{"id":"npm","kind":"node","package":"@steipete/bird","bins":["bird"],"label":"Install bird (npm)"}]}}
 ---
+
 # bird 🐦
 
 Fast X/Twitter CLI using GraphQL + cookie auth.

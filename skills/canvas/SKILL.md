@@ -1,8 +1,36 @@
----
-name: canvas
-description: "Custom OpenClaw Skill."
----
------|-----------------|-----------------|
+# Canvas Skill
+
+Display HTML content on connected OpenClaw nodes (Mac app, iOS, Android).
+
+## Overview
+
+The canvas tool lets you present web content on any connected node's canvas view. Great for:
+- Displaying games, visualizations, dashboards
+- Showing generated HTML content
+- Interactive demos
+
+## How It Works
+
+### Architecture
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐
+│  Canvas Host    │────▶│   Node Bridge    │────▶│  Node App   │
+│  (HTTP Server)  │     │  (TCP Server)    │     │ (Mac/iOS/   │
+│  Port 18793     │     │  Port 18790      │     │  Android)   │
+└─────────────────┘     └──────────────────┘     └─────────────┘
+```
+
+1. **Canvas Host Server**: Serves static HTML/CSS/JS files from `canvasHost.root` directory
+2. **Node Bridge**: Communicates canvas URLs to connected nodes
+3. **Node Apps**: Render the content in a WebView
+
+### Tailscale Integration
+
+The canvas host server binds based on `gateway.bind` setting:
+
+| Bind Mode | Server Binds To | Canvas URL Uses |
+|-----------|-----------------|-----------------|
 | `loopback` | 127.0.0.1 | localhost (local only) |
 | `lan` | LAN interface | LAN IP address |
 | `tailnet` | Tailscale interface | Tailscale hostname |
@@ -27,7 +55,7 @@ This is why localhost URLs don't work - the node receives the Tailscale hostname
 
 ## Configuration
 
-In `~/.clawdbot/moltbot.json`:
+In `~/.clawdbot/openclaw.json`:
 
 ```json
 {
@@ -74,7 +102,7 @@ HTML
 
 Check how your gateway is bound:
 ```bash
-cat ~/.clawdbot/moltbot.json | jq '.gateway.bind'
+cat ~/.clawdbot/openclaw.json | jq '.gateway.bind'
 ```
 
 Then construct the URL:
@@ -89,7 +117,7 @@ tailscale status --json | jq -r '.Self.DNSName' | sed 's/\.$//'
 ### 3. Find connected nodes
 
 ```bash
-moltbot nodes list
+openclaw nodes list
 ```
 
 Look for Mac/iOS/Android nodes with canvas capability.
@@ -120,7 +148,7 @@ canvas action:hide node:<node-id>
 **Cause:** URL mismatch between server bind and node expectation.
 
 **Debug steps:**
-1. Check server bind: `cat ~/.clawdbot/moltbot.json | jq '.gateway.bind'`
+1. Check server bind: `cat ~/.clawdbot/openclaw.json | jq '.gateway.bind'`
 2. Check what port canvas is on: `lsof -i :18793`
 3. Test URL directly: `curl http://<hostname>:18793/__moltbot__/canvas/<file>.html`
 
@@ -132,7 +160,7 @@ Always specify `node:<node-id>` parameter.
 
 ### "node not connected" error
 
-Node is offline. Use `moltbot nodes list` to find online nodes.
+Node is offline. Use `openclaw nodes list` to find online nodes.
 
 ### Content not updating
 

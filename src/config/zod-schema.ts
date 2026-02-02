@@ -27,7 +27,7 @@ const NodeHostSchema = z
   .strict()
   .optional();
 
-export const MoltbotSchema = z
+export const OpenClawSchema = z
   .object({
     meta: z
       .object({
@@ -155,7 +155,7 @@ export const MoltbotSchema = z
               .object({
                 cdpPort: z.number().int().min(1).max(65535).optional(),
                 cdpUrl: z.string().optional(),
-                driver: z.union([z.literal("clawd"), z.literal("extension")]).optional(),
+                driver: z.union([z.literal("openclaw"), z.literal("extension")]).optional(),
                 color: HexColorSchema,
               })
               .strict()
@@ -269,6 +269,7 @@ export const MoltbotSchema = z
         wideArea: z
           .object({
             enabled: z.boolean().optional(),
+            domain: z.string().optional(),
           })
           .strict()
           .optional(),

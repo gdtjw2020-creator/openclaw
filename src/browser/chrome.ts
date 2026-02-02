@@ -178,6 +178,12 @@ export async function launchClawdChrome(
   }
   await ensurePortAvailable(profile.cdpPort);
 
+  // Ensure DISPLAY environment variable is set for headless browser (Docker containers)
+  if (!process.env.DISPLAY && process.platform === "linux") {
+    process.env.DISPLAY = ":99";
+    log.info("Set DISPLAY=:99 for headless browser support");
+  }
+
   const exe = resolveBrowserExecutable(resolved);
   if (!exe) {
     throw new Error(

@@ -1,12 +1,44 @@
-FROM my-openclaw:prod
+FROM node:22-bookworm
 
-# Switch to root to install system dependencies
-USER root
+# Install Bun (required for build scripts)
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:${PATH}"
+
+RUN corepack enable
+
+WORKDIR /app
+
+ARG CLAWDBOT_DOCKER_APT_PACKAGES=""
+RUN if [ -n "$CLAWDBOT_DOCKER_APT_PACKAGES" ]; then \
+      apt-get update && \
+      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $CLAWDBOT_DOCKER_APT_PACKAGES && \
+      apt-get clean && \
+      rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*; \
+    fi
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY ui/package.json ./ui/package.json
+COPY patches ./patches
+COPY scripts ./scripts
+
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+RUN CLAWDBOT_A2UI_SKIP_MISSING=1 pnpm build
+# Force pnpm for UI build (Bun may fail on ARM/Synology architectures)
+ENV CLAWDBOT_PREFER_PNPM=1
+RUN pnpm ui:install
+RUN pnpm ui:build
+
+ENV NODE_ENV=production
+
+# ============================================
+# Browser Support (Chromium + Xvfb)
+# ============================================
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install Chromium, Xvfb (virtual display), and all required dependencies
-# Based on the official Dockerfile.sandbox-browser
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     chromium-sandbox \
@@ -30,10 +62,17 @@ RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 COPY docker-entrypoint-custom.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Switch back to the standard user
+# ============================================
+# Security & Runtime
+# ============================================
+
+# Security hardening: Run as non-root user
+# The node:22-bookworm image includes a 'node' user (uid 1000)
+# This reduces the attack surface by preventing container escape via root privileges
 USER node
 
 # Set default display for the container
 ENV DISPLAY=:99
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["node", "dist/index.js"]

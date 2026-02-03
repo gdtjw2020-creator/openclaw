@@ -1,0 +1,27 @@
+{
+  "id": "custom-app",
+  "channels": [
+    "custom-app"
+  ],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "port": {
+        "type": "number",
+        "description": "WebSocket server port",
+        "default": 18800
+      },
+      "httpPort": {
+        "type": "number",
+        "description": "HTTP registration server port",
+        "default": 18801
+      },
+      "enabled": {
+        "type": "boolean",
+        "description": "Enable custom app channel",
+        "default": true
+      }
+    }
+  }
+}

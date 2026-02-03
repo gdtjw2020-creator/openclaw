@@ -217,8 +217,15 @@ export const customAppPlugin: ChannelPlugin = {
           ctx.log?.info(`Routing to agent: ${route.agentId}`);
 
           // Build message context
+          // If there's a media URL, append it to the body so the agent can see it
+          let bodyWithMedia = message.body;
+          if (message.mediaUrl) {
+            const mediaNote = `\n\n[Image: ${message.mediaUrl}]`;
+            bodyWithMedia = message.body ? `${message.body}${mediaNote}` : mediaNote.trim();
+          }
+
           const ctxPayload = runtime.channel.reply.finalizeInboundContext({
-            Body: message.body,
+            Body: bodyWithMedia,
             RawBody: message.body,
             CommandBody: message.body,
             From: `custom-app:${message.from}`,

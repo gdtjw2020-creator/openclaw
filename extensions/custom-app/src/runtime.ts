@@ -1,14 +1,14 @@
-import type { RuntimeEnv } from "openclaw/plugin-sdk";
+import type { PluginRuntime } from "openclaw/plugin-sdk";
 
-let customAppRuntime: RuntimeEnv | null = null;
+let runtime: PluginRuntime | null = null;
 
-export function setCustomAppRuntime(runtime: RuntimeEnv): void {
-  customAppRuntime = runtime;
+export function setCustomAppRuntime(next: PluginRuntime): void {
+  runtime = next;
 }
 
-export function getCustomAppRuntime(): RuntimeEnv {
-  if (!customAppRuntime) {
+export function getCustomAppRuntime(): PluginRuntime {
+  if (!runtime) {
     throw new Error("Custom App runtime not initialized");
   }
-  return customAppRuntime;
+  return runtime;
 }

@@ -1,13 +1,15 @@
 import Database from "better-sqlite3";
 import path from "node:path";
-import { getCustomAppRuntime } from "./runtime.js";
 import type { MessagePayload } from "./types.js";
+import type { ChannelLogSink } from "openclaw/plugin-sdk";
 
 export class MessageStore {
   private db: Database.Database;
+  private log?: ChannelLogSink;
 
-  constructor(dbPath: string) {
+  constructor(dbPath: string, log?: ChannelLogSink) {
     this.db = new Database(dbPath);
+    this.log = log;
     this.initDatabase();
   }
 
@@ -18,9 +20,13 @@ export class MessageStore {
         client_id TEXT NOT NULL,
         payload TEXT NOT NULL,
         delivered INTEGER DEFAULT 0,
-        created_at INTEGER NOT NULL,
-        INDEX idx_client_delivered (client_id, delivered)
+        created_at INTEGER NOT NULL
       )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_client_delivered 
+      ON messages (client_id, delivered)
     `);
 
     this.db.exec(`
@@ -76,7 +82,7 @@ export class MessageStore {
 
     const result = stmt.run(sevenDaysAgo);
     if (result.changes > 0) {
-      getCustomAppRuntime().log?.info(
+      getCustomAppLogger()?.info(
         `Cleaned up ${result.changes} old delivered messages`
       );
     }
@@ -113,7 +119,7 @@ export class MessageStore {
   }
 }
 
-export function createMessageStore(dataDir: string): MessageStore {
+export function createMessageStore(dataDir: string, log?: ChannelLogSink): MessageStore {
   const dbPath = path.join(dataDir, "custom-app.db");
-  return new MessageStore(dbPath);
+  return new MessageStore(dbPath, log);
 }

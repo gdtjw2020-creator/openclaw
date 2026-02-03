@@ -1,13 +1,72 @@
 import express from "express";
+import multer from "multer";
+import path from "node:path";
+import fs from "node:fs";
+import os from "node:os";
+import crypto from "node:crypto";
 import type { CustomAppWebSocketServer } from "./server.js";
-import { getCustomAppRuntime } from "./runtime.js";
+import type { ChannelLogSink } from "openclaw/plugin-sdk";
 
 export function startHttpServer(
   port: number,
   wsServer: CustomAppWebSocketServer,
-  hostname: string
+  hostname: string,
+  log?: ChannelLogSink
 ): void {
   const app = express();
+
+  // 媒体文件存储目录
+  const dataDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+  const mediaDir = path.join(dataDir, "custom-app", "media");
+  
+  // 确保目录存在
+  if (!fs.existsSync(mediaDir)) {
+    fs.mkdirSync(mediaDir, { recursive: true });
+  }
+
+  // 配置 multer 文件上传
+  const storage = multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      cb(null, mediaDir);
+    },
+    filename: (_req, file, cb) => {
+      // 生成唯一文件名: timestamp_random.ext
+      const ext = path.extname(file.originalname) || getExtFromMime(file.mimetype);
+      const uniqueName = `${Date.now()}_${crypto.randomBytes(8).toString("hex")}${ext}`;
+      cb(null, uniqueName);
+    },
+  });
+
+  const upload = multer({
+    storage,
+    limits: {
+      fileSize: 100 * 1024 * 1024, // 100MB 限制
+    },
+  });
+
+  // 文件上传接口
+  app.post("/upload", upload.single("file"), (req, res) => {
+    if (!req.file) {
+      res.status(400).json({ success: false, error: "No file uploaded" });
+      return;
+    }
+
+    const fileUrl = `http://${hostname}:${port}/media/${req.file.filename}`;
+    
+    log?.info(`File uploaded: ${req.file.originalname} -> ${req.file.filename}`);
+
+    res.json({
+      success: true,
+      url: fileUrl,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      size: req.file.size,
+      mimeType: req.file.mimetype,
+    });
+  });
+
+  // 静态文件服务 - 提供媒体文件访问
+  app.use("/media", express.static(mediaDir));
 
   app.get("/register", async (req, res) => {
     const { tempToken, expires } = wsServer.createTempToken();
@@ -166,10 +225,10 @@ export function startHttpServer(
   });
 
   app.listen(port, () => {
-    getCustomAppRuntime().log?.info(
+    log?.info(
       `Custom App HTTP server started on port ${port}`
     );
-    getCustomAppRuntime().log?.info(
+    log?.info(
       `Registration page: http://${hostname}:${port}/register`
     );
   });
@@ -190,9 +249,31 @@ async function generateQRCode(data: string): Promise<string> {
     });
   } catch (error) {
     // Fallback: return a placeholder
-    getCustomAppRuntime().log?.warn(
+    log?.warn(
       "QRCode library not available, using placeholder"
     );
     return "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+UVIgQ29kZSBQbGFjZWhvbGRlcjwvdGV4dD48L3N2Zz4=";
   }
+}
+
+
+// 根据 MIME 类型获取文件扩展名
+function getExtFromMime(mimeType: string): string {
+  const mimeToExt: Record<string, string> = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "video/mp4": ".mp4",
+    "video/webm": ".webm",
+    "video/quicktime": ".mov",
+    "audio/mpeg": ".mp3",
+    "audio/mp4": ".m4a",
+    "audio/ogg": ".ogg",
+    "audio/wav": ".wav",
+    "application/pdf": ".pdf",
+    "application/zip": ".zip",
+    "text/plain": ".txt",
+  };
+  return mimeToExt[mimeType] || "";
 }

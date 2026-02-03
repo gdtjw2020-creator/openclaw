@@ -1,5 +1,5 @@
 import type { ChannelPlugin } from "openclaw/plugin-sdk";
-import { getChatChannelMeta } from "openclaw/plugin-sdk";
+import { getChatChannelMeta, createTypingCallbacks, logTypingFailure } from "openclaw/plugin-sdk";
 import { CustomAppWebSocketServer } from "./server.js";
 import { createMessageStore, type MessageStore } from "./message-store.js";
 import { startHttpServer } from "./http-server.js";
@@ -7,18 +7,38 @@ import { getCustomAppRuntime } from "./runtime.js";
 import type { CustomAppConfig } from "./types.js";
 import path from "node:path";
 import os from "node:os";
+import fs from "node:fs";
+import crypto from "node:crypto";
 
 const meta = getChatChannelMeta("custom-app");
 
 let wsServer: CustomAppWebSocketServer | null = null;
 let messageStore: MessageStore | null = null;
+let httpHostname: string = "localhost";
+let httpPort: number = 18801;
+let mediaDir: string = "";
+
+// Copy a local file to the media directory and return the HTTP URL
+function copyToMediaDir(localPath: string): string | null {
+  if (!fs.existsSync(localPath)) {
+    return null;
+  }
+  
+  const ext = path.extname(localPath) || ".bin";
+  const uniqueName = `${Date.now()}_${crypto.randomBytes(8).toString("hex")}${ext}`;
+  const destPath = path.join(mediaDir, uniqueName);
+  
+  fs.copyFileSync(localPath, destPath);
+  
+  return `http://${httpHostname}:${httpPort}/media/${uniqueName}`;
+}
 
 export const customAppPlugin: ChannelPlugin = {
   id: "custom-app",
   meta: {
     ...meta,
     label: "Custom App",
-    icon: "📱",
+    icon: "??",
     showConfigured: true,
   },
 
@@ -27,6 +47,20 @@ export const customAppPlugin: ChannelPlugin = {
     media: true,
     reactions: false,
     polls: false,
+  },
+
+  messaging: {
+    targetResolver: {
+      hint: "Use device ID (UUID format) or custom-app:device-id",
+      looksLikeId: (raw: string) => {
+        // Accept custom-app: prefix or raw UUID
+        const trimmed = raw.trim();
+        if (trimmed.startsWith("custom-app:")) return true;
+        // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(trimmed);
+      },
+    },
   },
 
   config: {
@@ -40,6 +74,32 @@ export const customAppPlugin: ChannelPlugin = {
   outbound: {
     deliveryMode: "gateway",
     textChunkLimit: 4000,
+
+    resolveTarget: ({ to, allowFrom }) => {
+      const trimmed = to?.trim() ?? "";
+      if (!trimmed) {
+        return {
+          ok: false,
+          error: new Error("Custom App target is required (device ID)"),
+        };
+      }
+
+      // Remove "custom-app:" prefix if present
+      const deviceId = trimmed.startsWith("custom-app:")
+        ? trimmed.slice("custom-app:".length)
+        : trimmed;
+
+      // Validate device ID format (UUID)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(deviceId)) {
+        return {
+          ok: false,
+          error: new Error(`Invalid device ID format: ${deviceId}`),
+        };
+      }
+
+      return { ok: true, to: deviceId };
+    },
 
     sendText: async ({ to, text }) => {
       if (!wsServer) {
@@ -63,10 +123,31 @@ export const customAppPlugin: ChannelPlugin = {
         throw new Error("Custom App server not started");
       }
 
+      // Check if mediaUrl is a local file path
+      let finalMediaUrl = mediaUrl;
+      if (mediaUrl && !mediaUrl.startsWith("http://") && !mediaUrl.startsWith("https://")) {
+        // It's a local file path, copy to media dir and get HTTP URL
+        const httpUrl = copyToMediaDir(mediaUrl);
+        if (httpUrl) {
+          finalMediaUrl = httpUrl;
+        } else {
+          // File doesn't exist, send as text message with error
+          await wsServer.sendToClient(to, {
+            type: "text",
+            text: `${text || ""}\n[??????????? ${mediaUrl}]`,
+            timestamp: Date.now(),
+          });
+          return {
+            channel: "custom-app",
+            messageId: `${Date.now()}`,
+          };
+        }
+      }
+
       await wsServer.sendToClient(to, {
         type: "media",
         text: text || "",
-        mediaUrl,
+        mediaUrl: finalMediaUrl,
         timestamp: Date.now(),
       });
 
@@ -82,32 +163,212 @@ export const customAppPlugin: ChannelPlugin = {
       const cfg = ctx.cfg as { channels?: { "custom-app"?: CustomAppConfig } };
       const config = cfg.channels?.["custom-app"] || {};
       const port = config.port || 18800;
-      const httpPort = config.httpPort || 18801;
+      const configHttpPort = config.httpPort || 18801;
 
       // Get data directory
       const dataDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
 
+      // Initialize media directory for file serving
+      mediaDir = path.join(dataDir, "custom-app", "media");
+      if (!fs.existsSync(mediaDir)) {
+        fs.mkdirSync(mediaDir, { recursive: true });
+      }
+
       // Initialize message store
-      messageStore = createMessageStore(dataDir);
+      messageStore = createMessageStore(dataDir, ctx.log);
 
       // Start WebSocket server
-      wsServer = new CustomAppWebSocketServer(port, messageStore);
+      wsServer = new CustomAppWebSocketServer(port, messageStore, ctx.log);
 
       // Set inbound message handler
       wsServer.setInboundMessageHandler(async (message) => {
-        // Forward to OpenClaw's auto-reply system
         ctx.log?.info(`Inbound message from ${message.from}: ${message.body}`);
+        ctx.log?.info(`[DEBUG] Full message object: mediaUrl=${message.mediaUrl}, mediaType=${message.mediaType}, body=${message.body}`);
 
-        // Here you would integrate with OpenClaw's message routing
-        // For now, just log it
-        getCustomAppRuntime().log?.info(
-          `Received message from ${message.from}: ${message.body}`
-        );
+        try {
+          const runtime = getCustomAppRuntime();
+          const config = await runtime.config.loadConfig();
+          
+          // Build session key for routing
+          const sessionKey = `custom-app:${message.from}`;
+          
+          // Resolve agent route
+          const route = runtime.channel.routing.resolveAgentRoute({
+            cfg: config,
+            channel: "custom-app",
+            accountId: "default",
+            chatType: "direct",
+            chatId: message.from,
+            senderId: message.from,
+          });
+
+          if (!route) {
+            ctx.log?.warn(`No route found for custom-app message from ${message.from}`);
+            if (wsServer) {
+              await wsServer.sendToClient(message.from, {
+                type: "text",
+                text: "????????? agent ??????",
+                timestamp: Date.now(),
+              });
+            }
+            return;
+          }
+
+          ctx.log?.info(`Routing to agent: ${route.agentId}`);
+
+          // Build message context
+          const ctxPayload = runtime.channel.reply.finalizeInboundContext({
+            Body: message.body,
+            RawBody: message.body,
+            CommandBody: message.body,
+            From: `custom-app:${message.from}`,
+            To: `custom-app:${message.from}`,
+            SessionKey: sessionKey,
+            AccountId: "default",
+            ChatType: "direct",
+            SenderId: message.from,
+            Provider: "custom-app",
+            Surface: "custom-app",
+            MessageSid: message.id,
+            Timestamp: message.timestamp,
+            MediaUrl: message.mediaUrl,
+            MediaType: message.mediaType,
+            OriginatingChannel: "custom-app" as const,
+            OriginatingTo: `custom-app:${message.from}`,
+          });
+
+          // Get effective messages config for response prefix
+          const messagesConfig = runtime.channel.reply.resolveEffectiveMessagesConfig(config, route.agentId);
+
+          // Create typing indicator function
+          const sendTyping = async () => {
+            if (wsServer) {
+              await wsServer.sendToClient(message.from, {
+                type: "typing",
+                isTyping: true,
+                timestamp: Date.now(),
+              });
+            }
+          };
+
+          const stopTyping = async () => {
+            if (wsServer) {
+              await wsServer.sendToClient(message.from, {
+                type: "typing",
+                isTyping: false,
+                timestamp: Date.now(),
+              });
+            }
+          };
+
+          // Dispatch to agent
+          await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
+            ctx: ctxPayload,
+            cfg: config,
+            dispatcherOptions: {
+              responsePrefix: messagesConfig.responsePrefix,
+              deliver: async (payload, _info) => {
+                // Send response back to the client
+                if (wsServer && payload.text) {
+                  await wsServer.sendToClient(message.from, {
+                    type: "text",
+                    text: payload.text,
+                    timestamp: Date.now(),
+                  });
+                  ctx.log?.info(`Sent reply to ${message.from}: ${payload.text.slice(0, 50)}...`);
+                }
+              },
+              onError: (err, info) => {
+                ctx.log?.error(`custom-app ${info.kind} reply failed: ${String(err)}`);
+                // Stop typing on error
+                void stopTyping().catch(() => {});
+              },
+              onReplyStart: createTypingCallbacks({
+                start: sendTyping,
+                stop: stopTyping,
+                onStartError: (err) => {
+                  logTypingFailure({
+                    log: (msg) => ctx.log?.debug?.(msg),
+                    channel: "custom-app",
+                    target: message.from,
+                    error: err,
+                  });
+                },
+                onStopError: (err) => {
+                  logTypingFailure({
+                    log: (msg) => ctx.log?.debug?.(msg),
+                    channel: "custom-app",
+                    action: "stop",
+                    target: message.from,
+                    error: err,
+                  });
+                },
+              }).onReplyStart,
+              onIdle: createTypingCallbacks({
+                start: sendTyping,
+                stop: stopTyping,
+                onStartError: (err) => {
+                  logTypingFailure({
+                    log: (msg) => ctx.log?.debug?.(msg),
+                    channel: "custom-app",
+                    target: message.from,
+                    error: err,
+                  });
+                },
+                onStopError: (err) => {
+                  logTypingFailure({
+                    log: (msg) => ctx.log?.debug?.(msg),
+                    channel: "custom-app",
+                    action: "stop",
+                    target: message.from,
+                    error: err,
+                  });
+                },
+              }).onIdle,
+            },
+            replyOptions: {},
+          });
+        } catch (error) {
+          ctx.log?.error(`Failed to handle inbound message: ${error}`);
+          // Send error message to client
+          if (wsServer) {
+            await wsServer.sendToClient(message.from, {
+              type: "text",
+              text: `??????????? ${error}`,
+              timestamp: Date.now(),
+            });
+          }
+        }
       });
 
       // Start HTTP registration server
-      const hostname = process.env.HOSTNAME || "localhost";
-      startHttpServer(httpPort, wsServer, hostname);
+      // Priority: config > env > auto-detect
+      let hostname = config.hostname || process.env.CUSTOM_APP_HOSTNAME || process.env.HOSTNAME;
+      
+      if (!hostname || hostname === "localhost") {
+        // Auto-detect network IP
+        const networkInterfaces = os.networkInterfaces();
+        for (const iface of Object.values(networkInterfaces)) {
+          if (!iface) continue;
+          for (const addr of iface) {
+            // Skip internal and IPv6 addresses
+            if (!addr.internal && addr.family === "IPv4") {
+              hostname = addr.address;
+              break;
+            }
+          }
+          if (hostname && hostname !== "localhost") break;
+        }
+      }
+      
+      hostname = hostname || "localhost";
+      
+      // Update module-level variables for media URL generation
+      httpHostname = hostname;
+      httpPort = configHttpPort;
+      
+      ctx.log?.info(`Using hostname: ${hostname}`);
+      startHttpServer(configHttpPort, wsServer, hostname, ctx.log);
 
       ctx.log?.info("Custom App channel started");
 

@@ -1,6 +1,7 @@
 export type CustomAppConfig = {
   port?: number;
   httpPort?: number;
+  hostname?: string;
   enabled?: boolean;
 };
 
@@ -19,7 +20,7 @@ export type PendingRegistration = {
 };
 
 export type MessagePayload = {
-  type: "text" | "media" | "sync" | "registered" | "ack";
+  type: "text" | "media" | "sync" | "registered" | "ack" | "typing";
   messageId?: string;
   text?: string;
   mediaUrl?: string;
@@ -27,6 +28,7 @@ export type MessagePayload = {
   messages?: MessagePayload[];
   token?: string;
   messageIds?: string[];
+  isTyping?: boolean;
 };
 
 export type InboundMessage = {

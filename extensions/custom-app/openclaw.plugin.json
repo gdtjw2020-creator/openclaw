@@ -17,6 +17,10 @@
         "description": "HTTP registration server port",
         "default": 18801
       },
+      "hostname": {
+        "type": "string",
+        "description": "Server hostname or IP address (supports domain names for AWS deployment)"
+      },
       "enabled": {
         "type": "boolean",
         "description": "Enable custom app channel",

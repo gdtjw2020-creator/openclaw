@@ -159,8 +159,17 @@ export class CustomAppWebSocketServer {
         if (ws) {
           this.syncUndeliveredMessages(deviceId, ws);
         }
+      } else if (message.type === "typing") {
+        // Typing status - ignore, don't send to agent
+        getCustomAppRuntime().log?.debug(`Typing status from ${deviceId}: ${message.isTyping}`);
       } else {
-        // Regular message from app
+        // Regular message from app - validate content
+        const hasContent = message.text?.trim() || message.mediaUrl;
+        if (!hasContent) {
+          getCustomAppRuntime().log?.debug(`Ignoring empty message from ${deviceId}`);
+          return;
+        }
+
         if (this.onInboundMessage) {
           const inboundMessage: InboundMessage = {
             from: deviceId,

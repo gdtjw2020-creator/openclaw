@@ -15,7 +15,7 @@ const meta = getChatChannelMeta("custom-app");
 let wsServer: CustomAppWebSocketServer | null = null;
 let messageStore: MessageStore | null = null;
 let httpHostname: string = "localhost";
-let httpPort: number = 18801;
+let httpPort: number = 18803;
 let mediaDir: string = "";
 
 // Copy a local file to the media directory and return the HTTP URL
@@ -162,8 +162,8 @@ export const customAppPlugin: ChannelPlugin = {
     startAccount: async (ctx) => {
       const cfg = ctx.cfg as { channels?: { "custom-app"?: CustomAppConfig } };
       const config = cfg.channels?.["custom-app"] || {};
-      const port = config.port || 18800;
-      const configHttpPort = config.httpPort || 18801;
+      const port = config.port || 18802;
+      const configHttpPort = config.httpPort || 18803;
 
       // Get data directory
       const dataDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");

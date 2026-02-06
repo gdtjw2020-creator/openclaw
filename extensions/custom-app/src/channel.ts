@@ -23,13 +23,13 @@ function copyToMediaDir(localPath: string): string | null {
   if (!fs.existsSync(localPath)) {
     return null;
   }
-  
+
   const ext = path.extname(localPath) || ".bin";
   const uniqueName = `${Date.now()}_${crypto.randomBytes(8).toString("hex")}${ext}`;
   const destPath = path.join(mediaDir, uniqueName);
-  
+
   fs.copyFileSync(localPath, destPath);
-  
+
   return `http://${httpHostname}:${httpPort}/media/${uniqueName}`;
 }
 
@@ -183,15 +183,31 @@ export const customAppPlugin: ChannelPlugin = {
       // Set inbound message handler
       wsServer.setInboundMessageHandler(async (message) => {
         ctx.log?.info(`Inbound message from ${message.from}: ${message.body}`);
+        ctx.log?.info(`Inbound message from ${message.from}: ${message.body}`);
         ctx.log?.info(`[DEBUG] Full message object: mediaUrl=${message.mediaUrl}, mediaType=${message.mediaType}, body=${message.body}`);
+
+        // Save inbound message
+        if (messageStore) {
+          try {
+            messageStore.saveMessage(message.from, {
+              type: message.mediaUrl ? "media" : "text",
+              text: message.body,
+              mediaUrl: message.mediaUrl,
+              timestamp: message.timestamp || Date.now(),
+            });
+            ctx.log?.info(`Saved inbound message from ${message.from}`);
+          } catch (err) {
+            ctx.log?.error(`Failed to save inbound message: ${err}`);
+          }
+        }
 
         try {
           const runtime = getCustomAppRuntime();
           const config = await runtime.config.loadConfig();
-          
+
           // Build session key for routing
           const sessionKey = `custom-app:${message.from}`;
-          
+
           // Resolve agent route
           const route = runtime.channel.routing.resolveAgentRoute({
             cfg: config,
@@ -283,12 +299,26 @@ export const customAppPlugin: ChannelPlugin = {
                     timestamp: Date.now(),
                   });
                   ctx.log?.info(`Sent reply to ${message.from}: ${payload.text.slice(0, 50)}...`);
+
+                  // Save outbound message (reply)
+                  if (messageStore) {
+                    try {
+                      messageStore.saveMessage(message.from, {
+                        type: "text",
+                        text: payload.text,
+                        timestamp: Date.now(),
+                      });
+                      ctx.log?.info(`Saved outbound reply to ${message.from}`);
+                    } catch (err) {
+                      ctx.log?.error(`Failed to save outbound reply: ${err}`);
+                    }
+                  }
                 }
               },
               onError: (err, info) => {
                 ctx.log?.error(`custom-app ${info.kind} reply failed: ${String(err)}`);
                 // Stop typing on error
-                void stopTyping().catch(() => {});
+                void stopTyping().catch(() => { });
               },
               onReplyStart: createTypingCallbacks({
                 start: sendTyping,
@@ -351,7 +381,7 @@ export const customAppPlugin: ChannelPlugin = {
       // Start HTTP registration server
       // Priority: config > env > auto-detect
       let hostname = config.hostname || process.env.CUSTOM_APP_HOSTNAME || process.env.HOSTNAME;
-      
+
       if (!hostname || hostname === "localhost") {
         // Auto-detect network IP
         const networkInterfaces = os.networkInterfaces();
@@ -367,13 +397,13 @@ export const customAppPlugin: ChannelPlugin = {
           if (hostname && hostname !== "localhost") break;
         }
       }
-      
+
       hostname = hostname || "localhost";
-      
+
       // Update module-level variables for media URL generation
       httpHostname = hostname;
       httpPort = configHttpPort;
-      
+
       ctx.log?.info(`Using hostname: ${hostname}`);
       startHttpServer(configHttpPort, wsServer, hostname, ctx.log);
 

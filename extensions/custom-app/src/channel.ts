@@ -299,20 +299,6 @@ export const customAppPlugin: ChannelPlugin = {
                     timestamp: Date.now(),
                   });
                   ctx.log?.info(`Sent reply to ${message.from}: ${payload.text.slice(0, 50)}...`);
-
-                  // Save outbound message (reply)
-                  if (messageStore) {
-                    try {
-                      messageStore.saveMessage(message.from, {
-                        type: "text",
-                        text: payload.text,
-                        timestamp: Date.now(),
-                      });
-                      ctx.log?.info(`Saved outbound reply to ${message.from}`);
-                    } catch (err) {
-                      ctx.log?.error(`Failed to save outbound reply: ${err}`);
-                    }
-                  }
                 }
               },
               onError: (err, info) => {

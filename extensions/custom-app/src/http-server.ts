@@ -77,7 +77,8 @@ export function startHttpServer(
   app.use("/media", express.static(mediaDir));
 
   app.get("/register", async (req, res) => {
-    const { tempToken, expires } = wsServer.createTempToken();
+    const code = req.query.code as string | undefined;
+    const { tempToken, expires } = wsServer.createTempToken(code);
 
     const qrData = JSON.stringify({
       server: `ws://${hostname}:${port - 1}`,
@@ -249,11 +250,14 @@ export function startHttpServer(
       const runtime = getCustomAppRuntime();
       const config = await runtime.config.loadConfig();
       const agentList = config.agents?.list || [];
-      const agentConfig = agentList.map((a: { id: string; name?: string }) => ({
+      let agentConfig = agentList.map((a: { id: string; name?: string }) => ({
         id: a.id,
         name: a.name || a.id,
         emoji: "🤖",
       }));
+
+      // Fallback: If config is empty, use defaults (Removed in strict mode)
+      // if (agentConfig.length === 0) { ... }
 
       const result = authenticateWithCode(code, clientId, agentConfig);
 
@@ -302,7 +306,10 @@ export function startHttpServer(
         emoji: "🤖",
       }));
 
-      const agents = getClientAgents(verify.clientId, agentConfig);
+      let agents = getClientAgents(verify.clientId, agentConfig);
+
+      // Fallback: If no agents found, provide default testing agents (Removed in strict mode)
+      // if (agents.length === 0) { ... }
 
       res.json({
         success: true,

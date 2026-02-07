@@ -5,6 +5,8 @@ import type { IncomingMessage } from "node:http";
 import { getCustomAppRuntime } from "./runtime.js";
 import type { MessagePayload, PendingRegistration, InboundMessage } from "./types.js";
 import type { MessageStore } from "./message-store.js";
+import { generateToken, authenticateWithCode } from "./auth.js";
+import { registerClient } from "./auth-store.js";
 
 export class CustomAppWebSocketServer {
   private wss: WebSocketServer;
@@ -41,12 +43,12 @@ export class CustomAppWebSocketServer {
     }
   }
 
-  private handleRegistration(
+  private async handleRegistration(
     ws: WebSocket,
     tempToken: string,
     deviceId: string,
     url: URL
-  ): void {
+  ): Promise<void> {
     const registration = this.pendingRegistrations.get(tempToken);
 
     if (!registration) {
@@ -60,12 +62,51 @@ export class CustomAppWebSocketServer {
       return;
     }
 
-    // Generate permanent token
-    const permanentToken = crypto.randomBytes(32).toString("hex");
+    // Generate permanent token (compatible with Multi-Agent auth)
+    const permanentToken = generateToken();
     const deviceName = url.searchParams.get("deviceName") || "Unknown Device";
 
-    // Save device info
+    // Save device info (WebSocket store)
     this.messageStore.registerDevice(deviceId, deviceName, permanentToken);
+
+    // Register with Multi-Agent auth if code is provided
+    let agentList: string[] = [];
+    if (registration.registrationCode) {
+      try {
+        const runtime = getCustomAppRuntime();
+        const config = await runtime.config.loadConfig();
+        const configuredAgents = config.agents?.list || [];
+
+        const agentConfig = configuredAgents.map((a: { id: string; name?: string }) => ({
+          id: a.id,
+          name: a.name || a.id,
+          emoji: "🤖",
+        }));
+
+        const authResult = authenticateWithCode(
+          registration.registrationCode,
+          deviceId,
+          agentConfig
+        );
+
+        if (authResult.success && authResult.agents) {
+          agentList = authResult.agents.map(a => a.id);
+          getCustomAppRuntime().log?.info(
+            `Device ${deviceId} authenticated with code ${registration.registrationCode}, agents: ${agentList.join(", ")}`
+          );
+        } else {
+          getCustomAppRuntime().log?.warn(
+            `Device ${deviceId} provided code ${registration.registrationCode} but auth failed: ${authResult.error}`
+          );
+        }
+      } catch (err) {
+        getCustomAppRuntime().log?.error(`Failed to load config for registration: ${err}`);
+      }
+    }
+
+    // Always register client in auth-store (even if agents list is empty - strict mode)
+    // If no code or invalid code, agents will be empty, effectively denying access to any agent.
+    registerClient(deviceId, permanentToken, agentList, registration.registrationCode || "");
 
     // Update registration status
     registration.deviceId = deviceId;
@@ -212,7 +253,7 @@ export class CustomAppWebSocketServer {
     }
   }
 
-  createTempToken(): { tempToken: string; expires: number } {
+  createTempToken(registrationCode?: string): { tempToken: string; expires: number } {
     const tempToken = crypto.randomBytes(16).toString("hex");
     const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
 
@@ -220,6 +261,7 @@ export class CustomAppWebSocketServer {
       tempToken,
       expires,
       deviceId: null,
+      registrationCode,
     });
 
     return { tempToken, expires };

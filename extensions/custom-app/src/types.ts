@@ -17,6 +17,7 @@ export type PendingRegistration = {
   tempToken: string;
   expires: number;
   deviceId: string | null;
+  registrationCode?: string;
 };
 
 export type MessagePayload = {
@@ -29,6 +30,7 @@ export type MessagePayload = {
   token?: string;
   messageIds?: string[];
   isTyping?: boolean;
+  agentId?: string;
 };
 
 export type InboundMessage = {

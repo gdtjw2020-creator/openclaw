@@ -279,6 +279,7 @@ export const customAppPlugin: ChannelPlugin = {
                 type: "typing",
                 isTyping: true,
                 timestamp: Date.now(),
+                agentId: targetAgentId,
               });
             }
           };
@@ -289,6 +290,7 @@ export const customAppPlugin: ChannelPlugin = {
                 type: "typing",
                 isTyping: false,
                 timestamp: Date.now(),
+                agentId: targetAgentId,
               });
             }
           };
@@ -306,6 +308,7 @@ export const customAppPlugin: ChannelPlugin = {
                     type: "text",
                     text: payload.text,
                     timestamp: Date.now(),
+                    agentId: targetAgentId,
                   });
                   ctx.log?.info(`Sent reply to ${message.from}: ${payload.text.slice(0, 50)}...`);
                 }

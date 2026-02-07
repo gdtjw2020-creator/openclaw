@@ -25,6 +25,10 @@ export NODE_ENV=production
 export OPENCLAW_STATE_DIR=/home/ubuntu/.openclaw
 export XDG_CONFIG_HOME=/home/ubuntu/.config
 
+# Navigate to project directory
+cd /home/ubuntu/my_bot
+
+
 # Rotate logs
 mv /tmp/openclaw.log /tmp/openclaw.log.old 2>/dev/null || true
 

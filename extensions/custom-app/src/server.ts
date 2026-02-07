@@ -158,6 +158,8 @@ export class CustomAppWebSocketServer {
     // Handle disconnection
     ws.on("close", () => {
       this.clients.delete(deviceId);
+      // Reset pending messages back to undelivered so they can be re-synced on reconnect
+      this.messageStore.resetPendingMessages(deviceId);
       getCustomAppRuntime().log?.info(`Device disconnected: ${deviceId}`);
     });
 
@@ -170,6 +172,10 @@ export class CustomAppWebSocketServer {
     const undelivered = this.messageStore.getUndeliveredMessages(deviceId);
 
     if (undelivered.length > 0) {
+      // Mark messages as pending to prevent duplicate sync
+      const messageIds = undelivered.map((row) => row.id);
+      this.messageStore.markPending(messageIds);
+
       const messages = undelivered.map((row) => JSON.parse(row.payload));
       ws.send(
         JSON.stringify({

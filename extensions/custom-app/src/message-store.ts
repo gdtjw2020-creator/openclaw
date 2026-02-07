@@ -50,6 +50,8 @@ export class MessageStore {
     return result.lastInsertRowid as number;
   }
 
+  // Get undelivered messages (delivered = 0)
+  // Messages in pending state (delivered = 2) are not included as they are in-flight
   getUndeliveredMessages(clientId: string): Array<{ id: number; payload: string }> {
     const stmt = this.db.prepare(`
       SELECT id, payload FROM messages 
@@ -61,16 +63,43 @@ export class MessageStore {
     return stmt.all(clientId) as Array<{ id: number; payload: string }>;
   }
 
+  // Mark messages as delivered
+  // Works for both undelivered (0) and pending (2) states
   markDelivered(messageIds: number[]): void {
     if (messageIds.length === 0) return;
 
     const placeholders = messageIds.map(() => "?").join(",");
     const stmt = this.db.prepare(`
       UPDATE messages SET delivered = 1 
-      WHERE id IN (${placeholders})
+      WHERE id IN (${placeholders}) AND delivered != 1
     `);
 
     stmt.run(...messageIds);
+  }
+
+  // Mark messages as pending (in-flight) - delivered = 2
+  // This prevents duplicate sends during reconnection
+  markPending(messageIds: number[]): void {
+    if (messageIds.length === 0) return;
+
+    const placeholders = messageIds.map(() => "?").join(",");
+    const stmt = this.db.prepare(`
+      UPDATE messages SET delivered = 2 
+      WHERE id IN (${placeholders}) AND delivered = 0
+    `);
+
+    stmt.run(...messageIds);
+  }
+
+  // Reset pending messages back to undelivered (for reconnection)
+  // Should be called when client disconnects without ack
+  resetPendingMessages(clientId: string): void {
+    const stmt = this.db.prepare(`
+      UPDATE messages SET delivered = 0 
+      WHERE client_id = ? AND delivered = 2
+    `);
+
+    stmt.run(clientId);
   }
 
   cleanup(): void {
@@ -82,7 +111,7 @@ export class MessageStore {
 
     const result = stmt.run(sevenDaysAgo);
     if (result.changes > 0) {
-      getCustomAppLogger()?.info(
+      this.log?.info(
         `Cleaned up ${result.changes} old delivered messages`
       );
     }

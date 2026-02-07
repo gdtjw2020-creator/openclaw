@@ -206,10 +206,7 @@ export const customAppPlugin: ChannelPlugin = {
           const runtime = getCustomAppRuntime();
           const config = await runtime.config.loadConfig();
 
-          // Build session key for routing
-          const sessionKey = `custom-app:${message.from}`;
-
-          // Resolve agent route
+          // Resolve agent route first to get the agent ID
           const route = runtime.channel.routing.resolveAgentRoute({
             cfg: config,
             channel: "custom-app",
@@ -224,7 +221,7 @@ export const customAppPlugin: ChannelPlugin = {
             if (wsServer) {
               await wsServer.sendToClient(message.from, {
                 type: "text",
-                text: "????????? agent ??????",
+                text: "未找到匹配的 agent 配置",
                 timestamp: Date.now(),
               });
             }
@@ -232,6 +229,10 @@ export const customAppPlugin: ChannelPlugin = {
           }
 
           ctx.log?.info(`Routing to agent: ${route.agentId}`);
+
+          // Build session key with agent prefix for proper session storage
+          // Format: agent:{agentId}:custom-app:{userId}
+          const sessionKey = `agent:${route.agentId}:custom-app:${message.from}`;
 
           // Build message context
           // If there's a media URL, append it to the body so the agent can see it

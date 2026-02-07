@@ -223,6 +223,7 @@ export class CustomAppWebSocketServer {
             mediaType: message.mediaType,
             mediaUrl: message.mediaUrl,
             replyToId: message.replyToId,
+            agentId: message.agentId,
           };
 
           await this.onInboundMessage(inboundMessage);

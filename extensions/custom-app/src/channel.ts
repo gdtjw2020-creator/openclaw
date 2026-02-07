@@ -10,6 +10,7 @@ import os from "node:os";
 import fs from "node:fs";
 import process from "node:process";
 import crypto from "node:crypto";
+import { checkAgentAccess } from "./auth.js";
 
 const meta = getChatChannelMeta("custom-app");
 
@@ -207,33 +208,26 @@ export const customAppPlugin: ChannelPlugin = {
           const config = await runtime.config.loadConfig();
 
           // Determine target agent ID
-          // Priority: 1. Client-specified agentId, 2. Route from bindings
-          let targetAgentId: string | undefined = message.agentId;
+          // Strict Mode: Client MUST specify agentId and must have permission
+          const targetAgentId = message.agentId;
 
           if (!targetAgentId) {
-            // Fallback to routing from bindings
-            const route = runtime.channel.routing.resolveAgentRoute({
-              cfg: config,
-              channel: "custom-app",
-              accountId: "default",
-              chatType: "direct",
-              chatId: message.from,
-              senderId: message.from,
-            });
-            targetAgentId = route?.agentId;
-          }
-
-          if (!targetAgentId) {
-            ctx.log?.warn(`No route found for custom-app message from ${message.from}`);
-            if (wsServer) {
-              await wsServer.sendToClient(message.from, {
-                type: "text",
-                text: "未找到匹配的 agent 配置",
-                timestamp: Date.now(),
-              });
-            }
+            ctx.log?.warn(`[Security] Dropping message from ${message.from}: No agentId specified`);
             return;
           }
+
+          // Check if client has access to this agent
+          if (!checkAgentAccess(message.from, targetAgentId)) {
+            ctx.log?.warn(`[Security] Dropping message from ${message.from}: Access denied for agent ${targetAgentId}`);
+            return;
+          }
+
+          /* Fallback logic removed in strict mode
+          if (!targetAgentId) {
+            // Fallback to routing from bindings
+            ...
+          }
+          */
 
           ctx.log?.info(`Routing to agent: ${targetAgentId}`);
 
@@ -267,6 +261,7 @@ export const customAppPlugin: ChannelPlugin = {
             MediaType: message.mediaType,
             OriginatingChannel: "custom-app" as const,
             OriginatingTo: `custom-app:${message.from}`,
+            AgentId: targetAgentId,
           });
 
           // Get effective messages config for response prefix

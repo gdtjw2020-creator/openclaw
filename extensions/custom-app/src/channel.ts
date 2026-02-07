@@ -8,6 +8,7 @@ import type { CustomAppConfig } from "./types.js";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
+import process from "node:process";
 import crypto from "node:crypto";
 
 const meta = getChatChannelMeta("custom-app");
@@ -352,12 +353,15 @@ export const customAppPlugin: ChannelPlugin = {
             replyOptions: {},
           });
         } catch (error) {
-          ctx.log?.error(`Failed to handle inbound message: ${error}`);
+          const err = error as Error;
+          ctx.log?.error(`Failed to handle inbound message: ${err.message}`);
+          ctx.log?.error(`[DEBUG] HOME=${process.env.HOME}, os.homedir()=${os.homedir()}, OPENCLAW_STATE_DIR=${process.env.OPENCLAW_STATE_DIR}`);
+          ctx.log?.error(`[DEBUG] Stack trace: ${err.stack}`);
           // Send error message to client
           if (wsServer) {
             await wsServer.sendToClient(message.from, {
               type: "text",
-              text: `??????????? ${error}`,
+              text: `消息处理失败: ${err.message}`,
               timestamp: Date.now(),
             });
           }

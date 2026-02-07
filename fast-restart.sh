@@ -22,6 +22,8 @@ echo "🚀 Starting OpenClaw Gateway..."
 export DISPLAY=:99
 export HOME=/home/ubuntu
 export NODE_ENV=production
+export OPENCLAW_STATE_DIR=/home/ubuntu/.openclaw
+export XDG_CONFIG_HOME=/home/ubuntu/.config
 
 # Rotate logs
 mv /tmp/openclaw.log /tmp/openclaw.log.old 2>/dev/null || true

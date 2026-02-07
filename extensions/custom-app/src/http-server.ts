@@ -6,6 +6,14 @@ import os from "node:os";
 import crypto from "node:crypto";
 import type { CustomAppWebSocketServer } from "./server.js";
 import type { ChannelLogSink } from "openclaw/plugin-sdk";
+import {
+  authenticateWithCode,
+  verifyToken,
+  extractTokenFromHeader,
+  getClientAgents,
+} from "./auth.js";
+import { createRegistrationCode, loadAuthData } from "./auth-store.js";
+import { getCustomAppRuntime } from "./runtime.js";
 
 export function startHttpServer(
   port: number,
@@ -18,7 +26,7 @@ export function startHttpServer(
   // 媒体文件存储目录
   const dataDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
   const mediaDir = path.join(dataDir, "custom-app", "media");
-  
+
   // 确保目录存在
   if (!fs.existsSync(mediaDir)) {
     fs.mkdirSync(mediaDir, { recursive: true });
@@ -52,7 +60,7 @@ export function startHttpServer(
     }
 
     const fileUrl = `http://${hostname}:${port}/media/${req.file.filename}`;
-    
+
     log?.info(`File uploaded: ${req.file.originalname} -> ${req.file.filename}`);
 
     res.json({
@@ -222,6 +230,126 @@ export function startHttpServer(
     const connected = wsServer.isDeviceConnected(tempToken);
 
     res.json({ connected });
+  });
+
+  // Parse JSON body for API endpoints
+  app.use(express.json());
+
+  // API: Register with code
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { code, clientId } = req.body;
+
+      if (!code || !clientId) {
+        res.status(400).json({ success: false, error: "Missing code or clientId" });
+        return;
+      }
+
+      // Get agent config from runtime
+      const runtime = getCustomAppRuntime();
+      const config = await runtime.config.loadConfig();
+      const agentList = config.agents?.list || [];
+      const agentConfig = agentList.map((a: { id: string; name?: string }) => ({
+        id: a.id,
+        name: a.name || a.id,
+        emoji: "🤖",
+      }));
+
+      const result = authenticateWithCode(code, clientId, agentConfig);
+
+      if (!result.success) {
+        res.status(401).json({ success: false, error: result.error });
+        return;
+      }
+
+      log?.info(`[auth] Client ${clientId} registered with code, agents: ${result.agents?.map(a => a.id).join(", ")}`);
+
+      res.json({
+        success: true,
+        token: result.token,
+        clientId: result.clientId,
+        agents: result.agents,
+      });
+    } catch (err) {
+      log?.error(`[auth] Registration failed: ${err}`);
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  });
+
+  // API: Get available agents for client
+  app.get("/api/agents", async (req, res) => {
+    try {
+      const token = extractTokenFromHeader(req.headers.authorization);
+
+      if (!token) {
+        res.status(401).json({ success: false, error: "No token provided" });
+        return;
+      }
+
+      const verify = verifyToken(token);
+      if (!verify.valid || !verify.clientId) {
+        res.status(401).json({ success: false, error: verify.error || "Invalid token" });
+        return;
+      }
+
+      // Get agent config from runtime
+      const runtime = getCustomAppRuntime();
+      const config = await runtime.config.loadConfig();
+      const agentList = config.agents?.list || [];
+      const agentConfig = agentList.map((a: { id: string; name?: string }) => ({
+        id: a.id,
+        name: a.name || a.id,
+        emoji: "🤖",
+      }));
+
+      const agents = getClientAgents(verify.clientId, agentConfig);
+
+      res.json({
+        success: true,
+        clientId: verify.clientId,
+        agents,
+      });
+    } catch (err) {
+      log?.error(`[auth] Get agents failed: ${err}`);
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  });
+
+  // API: Create registration code (admin use)
+  app.post("/api/admin/codes", async (req, res) => {
+    try {
+      const { code, agents, maxUses, label } = req.body;
+
+      if (!code || !agents || !Array.isArray(agents)) {
+        res.status(400).json({ success: false, error: "Missing code or agents" });
+        return;
+      }
+
+      createRegistrationCode(code, agents, maxUses || 1, label);
+      log?.info(`[auth] Created registration code: ${code}, agents: ${agents.join(", ")}`);
+
+      res.json({ success: true, code });
+    } catch (err) {
+      log?.error(`[auth] Create code failed: ${err}`);
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  });
+
+  // API: List registration codes (admin use)
+  app.get("/api/admin/codes", (_req, res) => {
+    try {
+      const data = loadAuthData();
+      res.json({
+        success: true,
+        codes: Object.entries(data.registrationCodes).map(([code, info]) => ({
+          code,
+          ...info,
+        })),
+      });
+    } catch (err) {
+      log?.error(`[auth] List codes failed: ${err}`);
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
   });
 
   app.listen(port, () => {

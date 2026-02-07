@@ -42,4 +42,5 @@ export type InboundMessage = {
   mediaType?: string;
   mediaUrl?: string;
   replyToId?: string;
+  agentId?: string;  // Client-specified target agent
 };

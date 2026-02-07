@@ -206,17 +206,24 @@ export const customAppPlugin: ChannelPlugin = {
           const runtime = getCustomAppRuntime();
           const config = await runtime.config.loadConfig();
 
-          // Resolve agent route first to get the agent ID
-          const route = runtime.channel.routing.resolveAgentRoute({
-            cfg: config,
-            channel: "custom-app",
-            accountId: "default",
-            chatType: "direct",
-            chatId: message.from,
-            senderId: message.from,
-          });
+          // Determine target agent ID
+          // Priority: 1. Client-specified agentId, 2. Route from bindings
+          let targetAgentId: string | undefined = message.agentId;
 
-          if (!route) {
+          if (!targetAgentId) {
+            // Fallback to routing from bindings
+            const route = runtime.channel.routing.resolveAgentRoute({
+              cfg: config,
+              channel: "custom-app",
+              accountId: "default",
+              chatType: "direct",
+              chatId: message.from,
+              senderId: message.from,
+            });
+            targetAgentId = route?.agentId;
+          }
+
+          if (!targetAgentId) {
             ctx.log?.warn(`No route found for custom-app message from ${message.from}`);
             if (wsServer) {
               await wsServer.sendToClient(message.from, {
@@ -228,11 +235,11 @@ export const customAppPlugin: ChannelPlugin = {
             return;
           }
 
-          ctx.log?.info(`Routing to agent: ${route.agentId}`);
+          ctx.log?.info(`Routing to agent: ${targetAgentId}`);
 
           // Build session key with agent prefix for proper session storage
           // Format: agent:{agentId}:custom-app:{userId}
-          const sessionKey = `agent:${route.agentId}:custom-app:${message.from}`;
+          const sessionKey = `agent:${targetAgentId}:custom-app:${message.from}`;
 
           // Build message context
           // If there's a media URL, append it to the body so the agent can see it
@@ -263,7 +270,7 @@ export const customAppPlugin: ChannelPlugin = {
           });
 
           // Get effective messages config for response prefix
-          const messagesConfig = runtime.channel.reply.resolveEffectiveMessagesConfig(config, route.agentId);
+          const messagesConfig = runtime.channel.reply.resolveEffectiveMessagesConfig(config, targetAgentId);
 
           // Create typing indicator function
           const sendTyping = async () => {

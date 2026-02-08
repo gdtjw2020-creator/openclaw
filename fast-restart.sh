@@ -41,8 +41,8 @@ cd /home/ubuntu/my_bot
 # Rotate logs
 mv /tmp/openclaw.log /tmp/openclaw.log.old 2>/dev/null || true
 
-# Run in background
-nohup node dist/index.js gateway --bind lan --port 18789 > /tmp/openclaw.log 2>&1 &
+# Run in background (force HOME=/home/ubuntu regardless of who runs this script)
+HOME=/home/ubuntu DISPLAY=:99 NODE_ENV=production OPENCLAW_STATE_DIR=/home/ubuntu/.openclaw XDG_CONFIG_HOME=/home/ubuntu/.config nohup node dist/index.js gateway --bind lan --port 18789 > /tmp/openclaw.log 2>&1 &
 PID=$!
 
 echo "⏳ Waiting for startup (PID: $PID)..."

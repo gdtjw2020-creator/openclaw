@@ -186,7 +186,7 @@ export const customAppPlugin: ChannelPlugin = {
       wsServer.setInboundMessageHandler(async (message) => {
         ctx.log?.info(`Inbound message from ${message.from}: ${message.body}`);
         ctx.log?.info(`Inbound message from ${message.from}: ${message.body}`);
-        ctx.log?.info(`[DEBUG] Full message object: agentId=${message.agentId}, mediaUrl=${message.mediaUrl}, mediaType=${message.mediaType}, body=${message.body}`);
+        ctx.log?.debug(`[Channel] 解析后的入站消息对象: ${JSON.stringify(message, null, 2)}`);
 
         // Save inbound message
         if (messageStore) {

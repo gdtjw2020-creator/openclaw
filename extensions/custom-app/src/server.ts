@@ -192,6 +192,7 @@ export class CustomAppWebSocketServer {
 
   private async handleIncomingMessage(deviceId: string, data: string): Promise<void> {
     try {
+      getCustomAppRuntime().log?.debug(`[WebSocket] 收到来自 ${deviceId} 的原始数据: ${data}`);
       const message = JSON.parse(data);
 
       if (message.type === "ack") {

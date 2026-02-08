@@ -25,6 +25,15 @@ export NODE_ENV=production
 export OPENCLAW_STATE_DIR=/home/ubuntu/.openclaw
 export XDG_CONFIG_HOME=/home/ubuntu/.config
 
+# Check Xvfb
+if ! pgrep Xvfb > /dev/null; then
+    echo "🖥️ Starting Xvfb..."
+    nohup Xvfb :99 -screen 0 1280x800x24 -ac -nolisten tcp > /dev/null 2>&1 &
+    sleep 2
+else
+    echo "🖥️ Xvfb already running."
+fi
+
 # Navigate to project directory
 cd /home/ubuntu/my_bot
 
@@ -37,22 +46,46 @@ nohup node dist/index.js gateway --bind lan --port 18789 > /tmp/openclaw.log 2>&
 PID=$!
 
 echo "⏳ Waiting for startup (PID: $PID)..."
-sleep 5
 
-# 5. Verification
-if pgrep -f 'node dist/index.js gateway' > /dev/null; then
-    echo "✅ Service successfully started!"
-    echo "   PID: $PID"
-    echo "   Log: /tmp/openclaw.log"
-    echo "   Testing health..."
-    sleep 2
-    if curl -s -I http://localhost:18803/register | grep "200 OK" > /dev/null; then
-        echo "   ✅ Custom App (Port 18803) is respondsive."
-    else
-        echo "   ⚠️ Custom App port 18803 not responding yet (check logs)."
+# Wait loop for service health
+MAX_RETRIES=30
+COUNT=0
+URL="http://localhost:18803/register"
+
+while [ $COUNT -lt $MAX_RETRIES ]; do
+    if curl -s -I $URL | grep "200 OK" > /dev/null; then
+        echo "✅ Service successfully started!"
+        echo "   PID: $PID"
+        echo "   Log: /tmp/openclaw.log"
+        break
     fi
-else
-    echo "❌ Service failed to start. Last 20 lines of log:"
+    sleep 1
+    COUNT=$((COUNT+1))
+    echo -n "."
+done
+echo ""
+
+if [ $COUNT -eq $MAX_RETRIES ]; then
+    echo "❌ Service failed to start (timeout). Last 20 lines of log:"
     tail -n 20 /tmp/openclaw.log
+    # Check if process died
+    if ! kill -0 $PID 2>/dev/null; then
+         echo "Process $PID died."
+    fi
     exit 1
+fi
+
+echo "   ✅ Custom App (Port 18803) is respondsive."
+
+# 6. Start & Verify Browser
+echo "🌐 Starting Browser Service..."
+node dist/index.js browser start
+
+echo "🔎 Verifying Browser Status..."
+if node dist/index.js browser status | grep "running: true" > /dev/null; then
+    echo "✅ Browser service is running."
+else
+    echo "⚠️ Browser service failed to start or is not running."
+    # Optional: Print status for debugging
+    node dist/index.js browser status
 fi

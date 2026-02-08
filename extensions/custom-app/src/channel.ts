@@ -208,8 +208,7 @@ export const customAppPlugin: ChannelPlugin = {
           const config = await runtime.config.loadConfig();
 
           // Determine target agent ID
-          // Strict Mode: Client MUST specify agentId and must have permission
-          const targetAgentId = message.agentId;
+          let targetAgentId = message.agentId;
 
           if (!targetAgentId) {
             ctx.log?.warn(`[Security] Dropping message from ${message.from}: No agentId specified`);

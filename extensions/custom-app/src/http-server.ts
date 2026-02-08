@@ -4,6 +4,7 @@ import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
 import crypto from "node:crypto";
+import http from "node:http";
 import type { CustomAppWebSocketServer } from "./server.js";
 import type { ChannelLogSink } from "openclaw/plugin-sdk";
 import {
@@ -20,7 +21,7 @@ export function startHttpServer(
   wsServer: CustomAppWebSocketServer,
   hostname: string,
   log?: ChannelLogSink
-): void {
+): http.Server {
   const app = express();
 
   // 媒体文件存储目录
@@ -359,7 +360,7 @@ export function startHttpServer(
     }
   });
 
-  app.listen(port, () => {
+  return app.listen(port, () => {
     log?.info(
       `Custom App HTTP server started on port ${port}`
     );

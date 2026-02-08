@@ -8,6 +8,7 @@ import type { CustomAppConfig } from "./types.js";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
+import http from "node:http";
 import process from "node:process";
 import crypto from "node:crypto";
 import { checkAgentAccess } from "./auth.js";
@@ -181,6 +182,8 @@ export const customAppPlugin: ChannelPlugin = {
 
       // Start WebSocket server
       wsServer = new CustomAppWebSocketServer(port, messageStore, ctx.log);
+
+      let httpServer: http.Server | undefined;
 
       // Set inbound message handler
       wsServer.setInboundMessageHandler(async (message) => {
@@ -410,7 +413,7 @@ export const customAppPlugin: ChannelPlugin = {
       httpPort = configHttpPort;
 
       ctx.log?.info(`Using hostname: ${hostname}`);
-      startHttpServer(configHttpPort, wsServer, hostname, ctx.log);
+      httpServer = startHttpServer(configHttpPort, wsServer, hostname, ctx.log);
 
       ctx.log?.info("Custom App channel started");
 
@@ -430,6 +433,9 @@ export const customAppPlugin: ChannelPlugin = {
       // Cleanup
       wsServer?.close();
       messageStore?.close();
+      httpServer?.close(() => {
+        ctx.log?.info("Custom App HTTP server stopped");
+      });
       wsServer = null;
       messageStore = null;
 

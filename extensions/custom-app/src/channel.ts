@@ -239,7 +239,16 @@ export const customAppPlugin: ChannelPlugin = {
           // If there's a media URL, append it to the body so the agent can see it
           let bodyWithMedia = message.body;
           if (message.mediaUrl) {
-            const mediaNote = `\n\n[Image: ${message.mediaUrl}]`;
+            let mediaLabel = "Media";
+            if (message.mediaType?.startsWith("image/")) {
+              mediaLabel = "Image";
+            } else if (message.mediaType?.startsWith("audio/")) {
+              mediaLabel = "Audio";
+            } else if (message.mediaType?.startsWith("video/")) {
+              mediaLabel = "Video";
+            }
+
+            const mediaNote = `\n\n[${mediaLabel}: ${message.mediaUrl}]`;
             bodyWithMedia = message.body ? `${message.body}${mediaNote}` : mediaNote.trim();
           }
 
@@ -258,6 +267,7 @@ export const customAppPlugin: ChannelPlugin = {
             MessageSid: message.id,
             Timestamp: message.timestamp,
             MediaUrl: message.mediaUrl,
+            MediaPath: message.mediaPath,
             MediaType: message.mediaType,
             OriginatingChannel: "custom-app" as const,
             OriginatingTo: `custom-app:${message.from}`,

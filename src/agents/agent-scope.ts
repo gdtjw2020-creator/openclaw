@@ -27,6 +27,7 @@ type ResolvedAgentConfig = {
   groupChat?: AgentEntry["groupChat"];
   subagents?: AgentEntry["subagents"];
   sandbox?: AgentEntry["sandbox"];
+  skills?: AgentEntry["skills"];
   tools?: AgentEntry["tools"];
 };
 
@@ -110,6 +111,7 @@ export function resolveAgentConfig(
     groupChat: entry.groupChat,
     subagents: typeof entry.subagents === "object" && entry.subagents ? entry.subagents : undefined,
     sandbox: entry.sandbox,
+    skills: Array.isArray(entry.skills) ? entry.skills : undefined,
     tools: entry.tools,
   };
 }

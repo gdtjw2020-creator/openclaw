@@ -309,15 +309,53 @@ export const customAppPlugin: ChannelPlugin = {
             dispatcherOptions: {
               responsePrefix: messagesConfig.responsePrefix,
               deliver: async (payload, _info) => {
-                // Send response back to the client
-                if (wsServer && payload.text) {
+                if (!wsServer) return;
+
+                // Collect media URLs from payload
+                const mediaList = payload.mediaUrls?.length
+                  ? payload.mediaUrls
+                  : payload.mediaUrl
+                    ? [payload.mediaUrl]
+                    : [];
+
+                // Send media items first (with caption on the first one)
+                let captionSent = false;
+                for (const url of mediaList) {
+                  const caption: string = !captionSent ? (payload.text || "") : "";
+                  captionSent = captionSent || Boolean(caption);
+
+                  // Convert local file paths to HTTP URLs
+                  let finalUrl = url;
+                  if (url && !url.startsWith("http://") && !url.startsWith("https://")) {
+                    const httpUrl = copyToMediaDir(url);
+                    if (httpUrl) {
+                      finalUrl = httpUrl;
+                    } else {
+                      ctx.log?.warn(`Media file not found: ${url}`);
+                      continue;
+                    }
+                  }
+
                   await wsServer.sendToClient(message.from, {
-                    type: "text",
-                    text: payload.text,
+                    type: "media",
+                    text: caption,
+                    mediaUrl: finalUrl,
                     timestamp: Date.now(),
                     agentId: targetAgentId,
                   });
-                  ctx.log?.info(`Sent reply to ${message.from}: ${payload.text.slice(0, 50)}...`);
+                  ctx.log?.info(`Sent media to ${message.from}: ${finalUrl}`);
+                }
+
+                // Send remaining text (if no media consumed the caption, or text-only reply)
+                const textToSend = captionSent ? "" : (payload.text || "");
+                if (textToSend) {
+                  await wsServer.sendToClient(message.from, {
+                    type: "text",
+                    text: textToSend,
+                    timestamp: Date.now(),
+                    agentId: targetAgentId,
+                  });
+                  ctx.log?.info(`Sent reply to ${message.from}: ${textToSend.slice(0, 50)}...`);
                 }
               },
               onError: (err, info) => {

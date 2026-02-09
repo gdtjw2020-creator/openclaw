@@ -1,6 +1,7 @@
 import type { AgentEvent } from "@mariozechner/pi-agent-core";
 
 import { emitAgentEvent } from "../infra/agent-events.js";
+import { splitMediaFromOutput } from "../media/parse.js";
 import { normalizeTextForComparison } from "./pi-embedded-helpers.js";
 import { isMessagingTool, isMessagingToolSendAction } from "./pi-embedded-messaging.js";
 import type { EmbeddedPiSubscribeContext } from "./pi-embedded-subscribe.handlers.types.js";
@@ -215,6 +216,25 @@ export function handleToolExecutionEnd(
     const outputText = extractToolResultText(sanitizedResult);
     if (outputText) {
       ctx.emitToolOutput(toolName, meta, outputText);
+    }
+  }
+
+  // Always emit media URLs from tool results, even when verbose is off.
+  // This ensures screenshots/images reach the deliver callback as mediaUrls
+  // without relying on the LLM to echo the MEDIA: prefix in its reply text.
+  if (ctx.params.onToolResult && !ctx.shouldEmitToolOutput()) {
+    const outputText = extractToolResultText(sanitizedResult);
+    if (outputText) {
+      const parsed = splitMediaFromOutput(outputText);
+      if (parsed.mediaUrls?.length) {
+        try {
+          void ctx.params.onToolResult({
+            mediaUrls: parsed.mediaUrls,
+          });
+        } catch {
+          // ignore delivery failures
+        }
+      }
     }
   }
 }

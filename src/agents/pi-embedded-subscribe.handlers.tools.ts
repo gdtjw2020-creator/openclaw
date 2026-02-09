@@ -224,13 +224,22 @@ export function handleToolExecutionEnd(
   // without relying on the LLM to echo the MEDIA: prefix in its reply text.
   if (ctx.params.onToolResult && !ctx.shouldEmitToolOutput()) {
     const outputText = extractToolResultText(sanitizedResult);
+    ctx.log.debug(
+      `[media-passthrough] tool=${toolName} hasOnToolResult=${Boolean(ctx.params.onToolResult)} shouldEmitToolOutput=${ctx.shouldEmitToolOutput()} outputText=${outputText?.slice(0, 200) ?? "null"}`,
+    );
     if (outputText) {
       const parsed = splitMediaFromOutput(outputText);
+      ctx.log.debug(
+        `[media-passthrough] parsed mediaUrls=${JSON.stringify(parsed.mediaUrls)} text=${parsed.text?.slice(0, 100)}`,
+      );
       if (parsed.mediaUrls?.length) {
         try {
           void ctx.params.onToolResult({
             mediaUrls: parsed.mediaUrls,
           });
+          ctx.log.debug(
+            `[media-passthrough] emitted ${parsed.mediaUrls.length} media URLs`,
+          );
         } catch {
           // ignore delivery failures
         }

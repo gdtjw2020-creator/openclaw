@@ -399,10 +399,14 @@ export async function runAgentTurnWithFallback(params: {
                   // a typing loop that never sees a matching markRunComplete(). Track and drain.
                   const task = (async () => {
                     const { text, skip } = normalizeStreamingText(payload);
-                    if (skip) return;
-                    await params.typingSignals.signalTextDelta(text);
+                    const hasPayloadMedia = (payload.mediaUrls?.length ?? 0) > 0;
+                    // Allow media-only payloads through even when streaming text is skipped
+                    if (skip && !hasPayloadMedia) return;
+                    if (text) {
+                      await params.typingSignals.signalTextDelta(text);
+                    }
                     await onToolResult({
-                      text,
+                      text: skip ? undefined : text,
                       mediaUrls: payload.mediaUrls,
                     });
                   })()

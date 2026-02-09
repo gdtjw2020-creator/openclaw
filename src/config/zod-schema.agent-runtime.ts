@@ -445,6 +445,7 @@ export const AgentEntrySchema = z
       .strict()
       .optional(),
     sandbox: AgentSandboxSchema,
+    skills: z.array(z.string()).optional(),
     tools: AgentToolsSchema,
   })
   .strict();

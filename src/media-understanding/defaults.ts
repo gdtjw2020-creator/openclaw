@@ -8,7 +8,7 @@ export const DEFAULT_MAX_CHARS_BY_CAPABILITY: Record<
   number | undefined
 > = {
   image: DEFAULT_MAX_CHARS,
-  audio: undefined,
+  audio: 2000,
   video: DEFAULT_MAX_CHARS,
 };
 export const DEFAULT_MAX_BYTES: Record<MediaUnderstandingCapability, number> = {

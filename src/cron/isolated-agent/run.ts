@@ -288,9 +288,16 @@ export async function runCronIsolatedAgentTurn(params: {
   const skillsSnapshotVersion = getSkillsSnapshotVersion(workspaceDir);
   const needsSkillsSnapshot =
     !existingSnapshot || existingSnapshot.version !== skillsSnapshotVersion;
+  const agentSkillFilter = resolveAgentConfig(params.cfg, agentId)?.skills;
+  if (agentSkillFilter !== undefined) {
+    console.log(
+      `[skills] Agent "${agentId}" skill filter (cron): ${agentSkillFilter.length > 0 ? agentSkillFilter.join(", ") : "(none)"}`,
+    );
+  }
   const skillsSnapshot = needsSkillsSnapshot
     ? buildWorkspaceSkillSnapshot(workspaceDir, {
         config: cfgWithAgentDefaults,
+        skillFilter: agentSkillFilter,
         eligibility: { remote: getRemoteSkillEligibility() },
         snapshotVersion: skillsSnapshotVersion,
       })

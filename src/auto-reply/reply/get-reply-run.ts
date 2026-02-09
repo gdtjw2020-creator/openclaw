@@ -5,6 +5,7 @@ import {
   isEmbeddedPiRunStreaming,
   resolveEmbeddedSessionLane,
 } from "../../agents/pi-embedded.js";
+import { resolveAgentConfig } from "../../agents/agent-scope.js";
 import { resolveSessionAuthProfileOverride } from "../../agents/auth-profiles/session-override.js";
 import type { ExecToolDefaults } from "../../agents/bash-tools.js";
 import type { OpenClawConfig } from "../../config/config.js";
@@ -231,6 +232,23 @@ export async function runPreparedReply(
     isNewSession && threadStarterBody
       ? `[Thread starter - for context]\n${threadStarterBody}`
       : undefined;
+  // Merge agent-level and channel-level skill filters (intersection).
+  const agentSkills = resolveAgentConfig(cfg, agentId)?.skills;
+  const channelSkillFilter = opts?.skillFilter;
+  const mergedSkillFilter =
+    agentSkills !== undefined && channelSkillFilter !== undefined
+      ? agentSkills.filter((s) => channelSkillFilter.includes(s))
+      : agentSkills ?? channelSkillFilter;
+  if (mergedSkillFilter !== undefined) {
+    console.log(
+      `[skills] Agent "${agentId}" skill filter: ${mergedSkillFilter.length > 0 ? mergedSkillFilter.join(", ") : "(none)"}` +
+        (agentSkills !== undefined && channelSkillFilter !== undefined
+          ? ` (merged: agent=${agentSkills.join(", ")}, channel=${channelSkillFilter.join(", ")})`
+          : agentSkills !== undefined
+            ? " (from agent config)"
+            : " (from channel config)"),
+    );
+  }
   const skillResult = await ensureSkillSnapshot({
     sessionEntry,
     sessionStore,
@@ -240,7 +258,7 @@ export async function runPreparedReply(
     isFirstTurnInSession,
     workspaceDir,
     cfg,
-    skillFilter: opts?.skillFilter,
+    skillFilter: mergedSkillFilter,
   });
   sessionEntry = skillResult.sessionEntry ?? sessionEntry;
   currentSystemSent = skillResult.systemSent;

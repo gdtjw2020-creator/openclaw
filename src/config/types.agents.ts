@@ -59,6 +59,8 @@ export type AgentConfig = {
     /** Auto-prune overrides for this agent. */
     prune?: SandboxPruneSettings;
   };
+  /** If specified, only load these skills for this agent. Omit = all skills; empty array = no skills. */
+  skills?: string[];
   tools?: AgentToolsConfig;
 };
 

@@ -1,5 +1,6 @@
 import {
   listAgentIds,
+  resolveAgentConfig,
   resolveAgentDir,
   resolveAgentModelFallbacksOverride,
   resolveAgentModelPrimary,
@@ -185,9 +186,16 @@ export async function agentCommand(
 
     const needsSkillsSnapshot = isNewSession || !sessionEntry?.skillsSnapshot;
     const skillsSnapshotVersion = getSkillsSnapshotVersion(workspaceDir);
+    const agentSkillFilter = resolveAgentConfig(cfg, sessionAgentId)?.skills;
+    if (agentSkillFilter !== undefined) {
+      console.log(
+        `[skills] Agent "${sessionAgentId}" skill filter (CLI): ${agentSkillFilter.length > 0 ? agentSkillFilter.join(", ") : "(none)"}`,
+      );
+    }
     const skillsSnapshot = needsSkillsSnapshot
       ? buildWorkspaceSkillSnapshot(workspaceDir, {
           config: cfg,
+          skillFilter: agentSkillFilter,
           eligibility: { remote: getRemoteSkillEligibility() },
           snapshotVersion: skillsSnapshotVersion,
         })

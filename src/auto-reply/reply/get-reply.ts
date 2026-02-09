@@ -1,4 +1,5 @@
 import {
+  resolveAgentConfig,
   resolveAgentDir,
   resolveAgentWorkspaceDir,
   resolveSessionAgentId,
@@ -142,6 +143,14 @@ export async function getReplyFromConfig(
     aliasIndex,
   });
 
+  // Merge agent-level and channel-level skill filters (intersection when both present).
+  const agentSkills = resolveAgentConfig(cfg, agentId)?.skills;
+  const channelSkillFilter = opts?.skillFilter;
+  const mergedSkillFilter =
+    agentSkills !== undefined && channelSkillFilter !== undefined
+      ? agentSkills.filter((s) => channelSkillFilter.includes(s))
+      : agentSkills ?? channelSkillFilter;
+
   const directiveResult = await resolveReplyDirectives({
     ctx: finalized,
     cfg,
@@ -166,7 +175,7 @@ export async function getReplyFromConfig(
     model,
     typing,
     opts,
-    skillFilter: opts?.skillFilter,
+    skillFilter: mergedSkillFilter,
   });
   if (directiveResult.kind === "reply") {
     return directiveResult.reply;
@@ -239,7 +248,7 @@ export async function getReplyFromConfig(
     contextTokens,
     directiveAck,
     abortedLastRun,
-    skillFilter: opts?.skillFilter,
+    skillFilter: mergedSkillFilter,
   });
   if (inlineActionResult.kind === "reply") {
     return inlineActionResult.reply;

@@ -1,0 +1,18 @@
+﻿ssh :   File "<string>", line 1
+所在位置 行:1 字符: 1
++ ssh -i "E:\doc\account\openclaw\openclaw.pem"
+ -o StrictHostKeyCheckin ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  
+    File "<string>", line 1:String) [], Remot  
+  eException
+    + FullyQualifiedErrorId : NativeCommandErr 
+   or
+ 
+    import json; print(json.dumps(json.load(ope
+n(chr(34)/home/ubuntu/.openclaw/exec-approvals.
+json(chr(34))),indent=2))
+                                               
+                      ^
+SyntaxError: invalid syntax

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "socket": {
+    "path": "/home/ubuntu/.openclaw/exec-approvals.sock",
+    "token": "R-PuGuVWm0PsnTyW0yyA_Q8VRjrjAhHE"
+  },
+  "defaults": {
+    "security": "allowlist",
+    "ask": "off",
+    "askFallback": "deny",
+    "autoAllowSkills": true
+  },
+  "agents": {
+    "sysadmin_agent": {
+      "security": "full"
+    },
+    "normal_agent": {
+      "security": "full"
+    },
+    "lsp_agent": {
+      "security": "full"
+    },
+    "xiaomei_agent": {
+      "security": "full"
+    }
+  }
+}

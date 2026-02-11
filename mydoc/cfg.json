@@ -1,0 +1,376 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.1.29",
+    "lastTouchedAt": "2026-02-08T10:35:13.124Z"
+  },
+  "env": {
+    "vars": {
+      "DISPLAY": ":99",
+      "RUNNINGHUB_API_KEY": "426aae23bbec46e0bf7904dae514ac1c"
+    }
+  },
+  "wizard": {
+    "lastRunAt": "2026-01-29T09:35:30.396Z",
+    "lastRunVersion": "2026.1.27-beta.1",
+    "lastRunCommand": "onboard",
+    "lastRunMode": "local"
+  },
+  "logging": {
+    "level": "debug",
+    "consoleLevel": "debug",
+    "consoleStyle": "pretty",
+    "redactSensitive": "tools"
+  },
+  "browser": {
+    "enabled": true,
+    "executablePath": "/usr/bin/google-chrome-stable",
+    "headless": true,
+    "noSandbox": true,
+    "defaultProfile": "openclaw",
+    "profiles": {
+      "openclaw": {
+        "cdpPort": 18900,
+        "color": "#FF4500"
+      }
+    }
+  },
+  "auth": {
+    "profiles": {
+      "zai:default": {
+        "provider": "zai",
+        "mode": "api_key"
+      }
+    }
+  },
+  "models": {
+    "providers": {
+      "zai": {
+        "baseUrl": "https://api.zai.com/v1",
+        "models": [
+          {
+            "id": "glm-4.7",
+            "name": "GLM-4.7",
+            "reasoning": false,
+            "input": [
+              "text"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "contextWindow": 120000,
+            "maxTokens": 4096
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "zai/glm-4.7"
+      },
+      "models": {
+        "zai/glm-4.7": {
+          "alias": "GLM"
+        }
+      },
+      "workspace": "/home/ubuntu/.openclaw/workspaces/clawd",
+      "contextPruning": {
+        "mode": "cache-ttl",
+        "keepLastAssistants": 10
+      },
+      "compaction": {
+        "mode": "default",
+        "reserveTokensFloor": 8000,
+        "maxHistoryShare": 0.4
+      },
+      "mediaMaxMb": 5,
+      "typingMode": "instant",
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 8
+      }
+    },
+    "list": [
+      {
+        "id": "xiaomei_agent",
+        "name": "小梅写作助手",
+        "workspace": "/home/ubuntu/.openclaw/workspaces/clawd-xiaomei_agent",
+        "tools": {
+          "allow": [
+            "browser",
+            "message",
+            "cron",
+            "skill-creator",
+            "exec",
+            "read",
+            "write",
+            "edit",
+            "gateway"
+          ]
+        },
+        "skills": [
+          "xiaomei-emotional-writing",
+          "wechat-article-beautifier",
+          "wechat-draft-publisher",
+          "nano-banana-image",
+          "xiaomei-wechat-analytics"
+        ]
+      },
+      {
+        "id": "lsp_agent",
+        "name": "LSP摄影助理",
+        "workspace": "/home/ubuntu/.openclaw/workspaces/clawd-lsp_agent",
+        "tools": {
+          "allow": [
+            "browser",
+            "message",
+            "cron",
+            "skill-creator",
+            "exec",
+            "read",
+            "write",
+            "edit",
+            "gateway"
+          ]
+        },
+        "skills": [
+          "runninghub-text-image-gen",
+          "lsp-photography-content",
+          "lsp-wechat-analytics",
+          "wechat-draft-publisher",
+          "wechat-article-beautifier",
+          "wechat-message-autoreply"
+        ]
+      },
+      {
+        "id": "normal_agent",
+        "name": "小蓉",
+        "workspace": "/home/ubuntu/.openclaw/workspaces/clawd-normal_agent",
+        "tools": {
+          "allow": [
+            "skill-creator",
+            "browser",
+            "message",
+            "cron",
+            "exec",
+            "read",
+            "write",
+            "edit",
+            "gateway"
+          ]
+        },
+        "skills": [
+          "weather",
+          "runninghub-text-image-gen",
+          "runninghub-digital-human",
+          "runninghub-heartmula-music-gen",
+          "runninghub-voice-clone",
+          "nano-banana-image"
+        ]
+      },
+      {
+        "id": "sysadmin_agent",
+        "name": "系统管理员",
+        "workspace": "/home/ubuntu/.openclaw/workspaces/clawd-sysadmin_agent",
+        "tools": {
+          "allow": [
+            "gateway",
+            "exec",
+            "read",
+            "message"
+          ]
+        },
+        "skills": []
+      }
+    ]
+  },
+  "bindings": [
+    {
+      "agentId": "xiaomei_agent",
+      "match": {
+        "channel": "whatsapp",
+        "peer": {
+          "kind": "group",
+          "id": "120363403719374195@g.us"
+        }
+      }
+    },
+    {
+      "agentId": "lsp_agent",
+      "match": {
+        "channel": "whatsapp",
+        "peer": {
+          "kind": "group",
+          "id": "120363423963212045@g.us"
+        }
+      }
+    },
+    {
+      "agentId": "normal_agent",
+      "match": {
+        "channel": "whatsapp",
+        "peer": {
+          "kind": "dm",
+          "id": "+8618927451306"
+        }
+      }
+    },
+    {
+      "agentId": "normal_agent",
+      "match": {
+        "channel": "custom-app"
+      }
+    }
+  ],
+  "messages": {
+    "ackReactionScope": "group-mentions"
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true
+  },
+  "hooks": {
+    "internal": {
+      "enabled": true,
+      "entries": {
+        "command-logger": {
+          "enabled": true
+        }
+      }
+    }
+  },
+  "web": {
+    "heartbeatSeconds": 30,
+    "reconnect": {
+      "maxAttempts": 999
+    }
+  },
+  "channels": {
+    "whatsapp": {
+      "dmPolicy": "open",
+      "selfChatMode": true,
+      "allowFrom": [
+        "*",
+        "+8618927451306"
+      ],
+      "groupPolicy": "open",
+      "mediaMaxMb": 3,
+      "blockStreaming": true,
+      "groups": {
+        "*": {
+          "requireMention": false
+        }
+      },
+      "debounceMs": 0
+    },
+    "custom-app": {
+      "enabled": true,
+      "port": 18802,
+      "httpPort": 18803,
+      "hostname": "aws.flashvideos.org"
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "lan",
+    "controlUi": {
+      "allowInsecureAuth": true
+    },
+    "auth": {
+      "mode": "token",
+      "token": "dcf8e904fc0ed0a7f01d0614ad89e3162312dfd02e9e6f3c"
+    },
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    }
+  },
+  "tools": {
+    "media": {
+      "audio": {
+        "enabled": false
+      }
+    },
+    "exec": {
+      "host": "gateway",
+      "security": "allowlist"
+    }
+  },
+  "skills": {
+    "install": {
+      "nodeManager": "npm"
+    },
+    "entries": {
+      "voice-call": {
+        "enabled": true
+      },
+      "weather": {
+        "enabled": true
+      },
+      "skill-creator": {
+        "enabled": true
+      },
+      "xiaomei-emotional-writing": {
+        "enabled": true
+      },
+      "wechat-draft-publisher": {
+        "enabled": true
+      },
+      "runninghub-text-image-gen": {
+        "enabled": true
+      },
+      "runninghub-digital-human": {
+        "enabled": true
+      },
+      "runninghub-heartmula-music-gen": {
+        "enabled": true
+      },
+      "runninghub-voice-clone": {
+        "enabled": true
+      },
+      "nano-banana-image": {
+        "enabled": true
+      },
+      "wechat-article-beautifier": {
+        "enabled": true
+      },
+      "xiaomei-wechat-analytics": {
+        "enabled": true
+      },
+      "comfyui": {
+        "enabled": true
+      },
+      "lsp-photography-content": {
+        "enabled": true
+      },
+      "lsp-wechat-analytics": {
+        "enabled": true
+      },
+      "wechat-message-autoreply": {
+        "enabled": true
+      }
+    }
+  },
+  "plugins": {
+    "enabled": true,
+    "allow": [
+      "",
+      "whatsapp",
+      "custom-app"
+    ],
+    "entries": {
+      "whatsapp": {
+        "enabled": true
+      },
+      "custom-app": {
+        "enabled": true
+      }
+    }
+  }
+}

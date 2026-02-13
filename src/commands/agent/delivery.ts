@@ -9,6 +9,7 @@ import {
   resolveAgentDeliveryPlan,
   resolveAgentOutboundTarget,
 } from "../../infra/outbound/agent-delivery.js";
+import { resolveSessionAgentId } from "../../agents/agent-scope.js";
 import { deliverOutboundPayloads } from "../../infra/outbound/deliver.js";
 import { buildOutboundResultEnvelope } from "../../infra/outbound/envelope.js";
 import {
@@ -183,6 +184,9 @@ export async function deliverAgentCommandResult(params: {
         channel: deliveryChannel,
         to: deliveryTarget,
         accountId: resolvedAccountId,
+        agentId:
+          opts.agentId ??
+          (opts.sessionKey ? resolveSessionAgentId({ sessionKey: opts.sessionKey, config: cfg }) : undefined),
         payloads: deliveryPayloads,
         replyToId: resolvedReplyToId ?? null,
         threadId: resolvedThreadTarget ?? null,

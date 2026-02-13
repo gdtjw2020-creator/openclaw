@@ -529,6 +529,7 @@ export async function runCronIsolatedAgentTurn(params: {
           channel: resolvedDelivery.channel,
           to: resolvedDelivery.to,
           accountId: resolvedDelivery.accountId,
+          agentId,
           threadId: resolvedDelivery.threadId,
           payloads: deliveryPayloads,
           bestEffort: deliveryBestEffort,

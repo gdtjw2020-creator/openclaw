@@ -104,7 +104,7 @@ export const customAppPlugin: ChannelPlugin = {
       return { ok: true, to: deviceId };
     },
 
-    sendText: async ({ to, text }) => {
+    sendText: async ({ to, text, agentId }) => {
       if (!wsServer) {
         throw new Error("Custom App server not started");
       }
@@ -113,6 +113,7 @@ export const customAppPlugin: ChannelPlugin = {
         type: "text",
         text,
         timestamp: Date.now(),
+        agentId,
       });
 
       return {
@@ -121,7 +122,7 @@ export const customAppPlugin: ChannelPlugin = {
       };
     },
 
-    sendMedia: async ({ to, text, mediaUrl }) => {
+    sendMedia: async ({ to, text, mediaUrl, agentId }) => {
       if (!wsServer) {
         throw new Error("Custom App server not started");
       }
@@ -139,6 +140,7 @@ export const customAppPlugin: ChannelPlugin = {
             type: "text",
             text: `${text || ""}\n[??????????? ${mediaUrl}]`,
             timestamp: Date.now(),
+            agentId,
           });
           return {
             channel: "custom-app",
@@ -152,6 +154,7 @@ export const customAppPlugin: ChannelPlugin = {
         text: text || "",
         mediaUrl: finalMediaUrl,
         timestamp: Date.now(),
+        agentId,
       });
 
       return {

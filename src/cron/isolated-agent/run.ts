@@ -524,17 +524,27 @@ export async function runCronIsolatedAgentTurn(params: {
     // for media/channel payloads so structured content is preserved.
     if (deliveryPayloadHasStructuredContent) {
       try {
-        await deliverOutboundPayloads({
+        const deliveryAgentId = (task.agentId ?? cfg.agents?.defaults?.isolatedAgentId)?.toString();
+        const startLocalTime = new Date().toLocaleString();
+        console.log(
+          `[DeliveryTrace] Starting isolated agent task ${task.id} at ${startLocalTime}. AgentId: ${deliveryAgentId}`
+        );
+
+        const results = await deliverOutboundPayloads({
           cfg: cfgWithAgentDefaults,
           channel: resolvedDelivery.channel,
           to: resolvedDelivery.to,
           accountId: resolvedDelivery.accountId,
-          agentId,
+          agentId: deliveryAgentId,
           threadId: resolvedDelivery.threadId,
           payloads: deliveryPayloads,
           bestEffort: deliveryBestEffort,
           deps: createOutboundSendDeps(params.deps),
         });
+
+        console.log(
+          `[DeliveryTrace] Cron job delivery for job ${params.job.id} completed. Result count: ${results.length}`
+        );
       } catch (err) {
         if (!deliveryBestEffort) {
           return withRunSession({ status: "error", summary, outputText, error: String(err) });

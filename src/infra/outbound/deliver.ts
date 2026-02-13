@@ -179,13 +179,13 @@ function createPluginHandler(params: {
 
 export async function deliverOutboundPayloads(params: {
   cfg: OpenClawConfig;
-  channel: Exclude<OutboundChannel, "none">;
+  channel: string;
   to: string;
   accountId?: string;
   agentId?: string;
-  payloads: ReplyPayload[];
+  payloads: ReplyPayload[]; // Assuming ChannelOutboundPayload is ReplyPayload based on context
   replyToId?: string | null;
-  threadId?: string | number | null;
+  threadId?: string | null;
   deps?: OutboundSendDeps;
   gifPlayback?: boolean;
   abortSignal?: AbortSignal;
@@ -200,6 +200,9 @@ export async function deliverOutboundPayloads(params: {
   };
 }): Promise<OutboundDeliveryResult[]> {
   const { cfg, channel, to, payloads } = params;
+  console.log(
+    `[DeliveryTrace] deliverOutboundPayloads called for channel: ${channel}, to: ${to}, agentId: ${params.agentId}`
+  );
   const accountId = params.accountId;
   const agentId = params.agentId;
   const deps = params.deps;

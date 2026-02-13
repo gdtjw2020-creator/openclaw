@@ -136,12 +136,16 @@ export const customAppPlugin: ChannelPlugin = {
           finalMediaUrl = httpUrl;
         } else {
           // File doesn't exist, send as text message with error
-          await wsServer.sendToClient(to, {
-            type: "text",
+          const payload = {
+            type: "text" as const,
             text: `${text || ""}\n[??????????? ${mediaUrl}]`,
             timestamp: Date.now(),
-            agentId,
-          });
+            agentId, // Include agentId in the valid payload
+          };
+          console.log(
+            `[DeliveryTrace] custom-app sendMedia (fallback to text). Payload agentId: ${payload.agentId} (type: ${typeof payload.agentId})`
+          );
+          await wsServer.sendToClient(to, payload);
           return {
             channel: "custom-app",
             messageId: `${Date.now()}`,
@@ -149,13 +153,17 @@ export const customAppPlugin: ChannelPlugin = {
         }
       }
 
-      await wsServer.sendToClient(to, {
-        type: "media",
+      const payload = {
+        type: "media" as const,
         text: text || "",
         mediaUrl: finalMediaUrl,
         timestamp: Date.now(),
-        agentId,
-      });
+        agentId, // Include agentId in the valid payload
+      };
+      console.log(
+        `[DeliveryTrace] custom-app sendMedia. Payload agentId: ${payload.agentId} (type: ${typeof payload.agentId})`
+      );
+      await wsServer.sendToClient(to, payload);
 
       return {
         channel: "custom-app",

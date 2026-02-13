@@ -61,13 +61,15 @@ export function buildGatewayCronService(params: {
     enqueueSystemEvent: (text, opts) => {
       const { agentId, cfg: runtimeConfig } = resolveCronAgent(opts?.agentId);
       cronLogger.info(
-        { agentId, requestedAgentId: opts?.agentId, textSummary: text.slice(0, 50) },
+        { agentId, requestedAgentId: opts?.agentId, sessionKey: opts?.sessionKey, textSummary: text.slice(0, 50) },
         "cron: enqueueSystemEvent resolved agent",
       );
-      const sessionKey = resolveAgentMainSessionKey({
-        cfg: runtimeConfig,
-        agentId,
-      });
+      const sessionKey =
+        opts?.sessionKey ??
+        resolveAgentMainSessionKey({
+          cfg: runtimeConfig,
+          agentId,
+        });
       enqueueSystemEvent(text, { sessionKey });
       requestHeartbeatNow({ reason: "cron:system-event" });
     },

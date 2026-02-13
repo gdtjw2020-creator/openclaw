@@ -522,14 +522,15 @@ export async function runCronIsolatedAgentTurn(params: {
     }
     // Shared subagent announce flow is text-based; keep direct outbound delivery
     // for media/channel payloads so structured content is preserved.
-    if (deliveryPayloadHasStructuredContent) {
-      try {
-        const deliveryAgentId = (task.agentId ?? cfg.agents?.defaults?.isolatedAgentId)?.toString();
-        const startLocalTime = new Date().toLocaleString();
-        console.log(
-          `[DeliveryTrace] Starting isolated agent task ${task.id} at ${startLocalTime}. AgentId: ${deliveryAgentId}`
-        );
+    const deliveryAgentId = (agentId ?? (agentCfg as any)?.isolatedAgentId)?.toString();
+    const startLocalTime = new Date().toLocaleString();
+    console.log(
+      `[DeliveryTrace] Starting isolated agent task ${params.job.id} at ${startLocalTime}. AgentId: ${deliveryAgentId}`
+    );
 
+    if (deliveryPayloadHasStructuredContent) {
+
+      try {
         const results = await deliverOutboundPayloads({
           cfg: cfgWithAgentDefaults,
           channel: resolvedDelivery.channel,
@@ -580,11 +581,15 @@ export async function runCronIsolatedAgentTurn(params: {
           endedAt: runEndedAt,
           outcome: { status: "ok" },
           announceType: "cron job",
+          agentId: deliveryAgentId, // Pass agentId here
         });
         if (!didAnnounce) {
           const message = "cron announce delivery failed";
+          // ...
+          console.log(`[DeliveryTrace] Cron announce flow failed: ${message}`);
           if (!deliveryBestEffort) {
             return withRunSession({
+
               status: "error",
               summary,
               outputText,

@@ -380,6 +380,7 @@ export async function runSubagentAnnounceFlow(params: {
   label?: string;
   outcome?: SubagentRunOutcome;
   announceType?: SubagentAnnounceType;
+  agentId?: string;
 }): Promise<boolean> {
   let didAnnounce = false;
   let shouldDeleteChildSession = params.cleanup === "delete";
@@ -529,12 +530,14 @@ export async function runSubagentAnnounceFlow(params: {
         channel: directOrigin?.channel,
         accountId: directOrigin?.accountId,
         to: directOrigin?.to,
+        agentId: params.agentId,
         threadId:
           directOrigin?.threadId != null && directOrigin.threadId !== ""
             ? String(directOrigin.threadId)
             : undefined,
         idempotencyKey: crypto.randomUUID(),
       },
+
       expectFinal: true,
       timeoutMs: 60_000,
     });

@@ -414,7 +414,7 @@ async function executeJobCore(
     const deliveryPlan = resolveCronDeliveryPlan(job);
     const sessionKey =
       deliveryPlan.channel !== "none" && deliveryPlan.to
-        ? `${deliveryPlan.channel}:${deliveryPlan.to}`
+        ? `agent:${job.agentId}:${deliveryPlan.channel}:${deliveryPlan.to}`
         : undefined;
     state.deps.enqueueSystemEvent(text, { agentId: job.agentId, sessionKey });
     if (job.wakeMode === "now" && state.deps.runHeartbeatOnce) {
@@ -470,7 +470,7 @@ async function executeJobCore(
       res.status === "error" ? `${prefix} (error): ${summaryText}` : `${prefix}: ${summaryText}`;
     const sessionKey =
       deliveryPlan.channel !== "none" && deliveryPlan.to
-        ? `${deliveryPlan.channel}:${deliveryPlan.to}`
+        ? `agent:${job.agentId}:${deliveryPlan.channel}:${deliveryPlan.to}`
         : undefined;
     state.deps.enqueueSystemEvent(label, { agentId: job.agentId, sessionKey });
     if (job.wakeMode === "now") {

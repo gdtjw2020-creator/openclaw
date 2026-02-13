@@ -587,9 +587,9 @@ export async function runHeartbeatOnce(opts: {
   // instead of the standard heartbeat prompt with "reply HEARTBEAT_OK".
   const isExecEvent = opts.reason === "exec-event";
   const isCronEvent = Boolean(opts.reason?.startsWith("cron:"));
-  const pendingEvents = isExecEvent || isCronEvent ? peekSystemEvents(sessionKey) : [];
+  const pendingEvents = peekSystemEvents(sessionKey);
   const hasExecCompletion = pendingEvents.some((evt) => evt.includes("Exec finished"));
-  const hasCronEvents = isCronEvent && pendingEvents.length > 0;
+  const hasCronEvents = pendingEvents.length > 0 && !hasExecCompletion;
   const prompt = hasExecCompletion
     ? EXEC_EVENT_PROMPT
     : hasCronEvents

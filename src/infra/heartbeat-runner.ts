@@ -498,23 +498,29 @@ export async function runHeartbeatOnce(opts: {
   const cfg = opts.cfg ?? loadConfig();
   const agentId = normalizeAgentId(opts.agentId ?? resolveDefaultAgentId(cfg));
   const heartbeat = opts.heartbeat ?? resolveHeartbeatConfig(cfg, agentId);
+  log.info("heartbeat: runHeartbeatOnce started", { agentId, reason: opts.reason });
+
   if (!heartbeatsEnabled) {
     return { status: "skipped", reason: "disabled" };
   }
   if (!isHeartbeatEnabledForAgent(cfg, agentId)) {
+    log.info("heartbeat: skipped (agent disabled)", { agentId });
     return { status: "skipped", reason: "disabled" };
   }
   if (!resolveHeartbeatIntervalMs(cfg, undefined, heartbeat)) {
+    log.info("heartbeat: skipped (no interval)", { agentId });
     return { status: "skipped", reason: "disabled" };
   }
 
   const startedAt = opts.deps?.nowMs?.() ?? Date.now();
   if (!isWithinActiveHours(cfg, heartbeat, startedAt)) {
+    log.info("heartbeat: skipped (quiet hours)", { agentId });
     return { status: "skipped", reason: "quiet-hours" };
   }
 
   const queueSize = (opts.deps?.getQueueSize ?? getQueueSize)(CommandLane.Main);
   if (queueSize > 0) {
+    log.info("heartbeat: skipped (requests in flight)", { agentId, queueSize });
     return { status: "skipped", reason: "requests-in-flight" };
   }
 
@@ -538,6 +544,7 @@ export async function runHeartbeatOnce(opts: {
         reason: "empty-heartbeat-file",
         durationMs: Date.now() - startedAt,
       });
+      log.info("heartbeat: skipped (empty file)", { agentId });
       return { status: "skipped", reason: "empty-heartbeat-file" };
     }
   } catch {
@@ -603,6 +610,7 @@ export async function runHeartbeatOnce(opts: {
       channel: delivery.channel !== "none" ? delivery.channel : undefined,
       accountId: delivery.accountId,
     });
+    log.info("heartbeat: skipped (alerts disabled)", { agentId });
     return { status: "skipped", reason: "alerts-disabled" };
   }
 
@@ -663,6 +671,7 @@ export async function runHeartbeatOnce(opts: {
         silent: !okSent,
         indicatorType: visibility.useIndicator ? resolveIndicatorType("ok-empty") : undefined,
       });
+      log.info("heartbeat: ran (empty)", { agentId, durationMs: Date.now() - startedAt });
       return { status: "ran", durationMs: Date.now() - startedAt };
     }
 
@@ -697,6 +706,7 @@ export async function runHeartbeatOnce(opts: {
         silent: !okSent,
         indicatorType: visibility.useIndicator ? resolveIndicatorType("ok-token") : undefined,
       });
+      log.info("heartbeat: ran (token)", { agentId, durationMs: Date.now() - startedAt });
       return { status: "ran", durationMs: Date.now() - startedAt };
     }
 
@@ -732,6 +742,7 @@ export async function runHeartbeatOnce(opts: {
         channel: delivery.channel !== "none" ? delivery.channel : undefined,
         accountId: delivery.accountId,
       });
+      log.info("heartbeat: skipped (duplicate)", { agentId });
       return { status: "ran", durationMs: Date.now() - startedAt };
     }
 
@@ -752,6 +763,7 @@ export async function runHeartbeatOnce(opts: {
         hasMedia: mediaUrls.length > 0,
         accountId: delivery.accountId,
       });
+      log.info("heartbeat: ran (no target)", { agentId, reason: delivery.reason });
       return { status: "ran", durationMs: Date.now() - startedAt };
     }
 
@@ -843,6 +855,7 @@ export async function runHeartbeatOnce(opts: {
       accountId: delivery.accountId,
       indicatorType: visibility.useIndicator ? resolveIndicatorType("sent") : undefined,
     });
+    log.info("heartbeat: sent", { agentId, channel: delivery.channel, to: delivery.to });
     return { status: "ran", durationMs: Date.now() - startedAt };
   } catch (err) {
     const reason = formatErrorMessage(err);

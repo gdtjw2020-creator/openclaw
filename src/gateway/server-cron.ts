@@ -60,6 +60,10 @@ export function buildGatewayCronService(params: {
     sessionStorePath,
     enqueueSystemEvent: (text, opts) => {
       const { agentId, cfg: runtimeConfig } = resolveCronAgent(opts?.agentId);
+      cronLogger.info(
+        { agentId, requestedAgentId: opts?.agentId, textSummary: text.slice(0, 50) },
+        "cron: enqueueSystemEvent resolved agent",
+      );
       const sessionKey = resolveAgentMainSessionKey({
         cfg: runtimeConfig,
         agentId,

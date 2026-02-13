@@ -312,9 +312,9 @@ function resolveHeartbeatAgents(cfg: OpenClawConfig): HeartbeatAgent[] {
     results.push({ agentId: defaultId, heartbeat });
   }
 
-  log.info("heartbeat: resolveHeartbeatAgents result", { 
+  console.log("DEBUG: resolveHeartbeatAgents result", JSON.stringify({ 
     agents: results.map(r => ({ id: r.agentId, hasHeartbeat: !!r.heartbeat })) 
-  });
+  }));
   return results;
 }
 
@@ -953,7 +953,7 @@ export function startHeartbeatRunner(opts: {
     for (const agent of resolveHeartbeatAgents(cfg)) {
       const intervalMs = resolveHeartbeatIntervalMs(cfg, undefined, agent.heartbeat);
       if (!intervalMs) {
-        log.warn("heartbeat: skipping agent (no interval)", { agentId: agent.agentId, heartbeat: agent.heartbeat });
+        console.log("DEBUG: skipping agent (no interval)", agent.agentId, agent.heartbeat);
         continue;
       }
       intervals.push(intervalMs);
@@ -966,7 +966,7 @@ export function startHeartbeatRunner(opts: {
         lastRunMs: prevState?.lastRunMs,
         nextDueMs,
       });
-      log.info("heartbeat: added agent", { agentId: agent.agentId, intervalMs, nextDueMs });
+      console.log("DEBUG: added agent", agent.agentId, intervalMs, nextDueMs);
     }
 
     state.cfg = cfg;

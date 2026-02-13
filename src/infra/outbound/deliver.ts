@@ -179,13 +179,13 @@ function createPluginHandler(params: {
 
 export async function deliverOutboundPayloads(params: {
   cfg: OpenClawConfig;
-  channel: string;
+  channel: Exclude<OutboundChannel, "none">;
   to: string;
   accountId?: string;
   agentId?: string;
-  payloads: ReplyPayload[]; // Assuming ChannelOutboundPayload is ReplyPayload based on context
+  payloads: ReplyPayload[];
   replyToId?: string | null;
-  threadId?: string | null;
+  threadId?: string | number | null;
   deps?: OutboundSendDeps;
   gifPlayback?: boolean;
   abortSignal?: AbortSignal;

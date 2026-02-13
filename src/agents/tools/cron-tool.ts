@@ -197,7 +197,17 @@ function inferDeliveryFromSessionKey(agentSessionKey?: string): CronDelivery | n
   const markerIndex = parts.findIndex(
     (part) => part === "direct" || part === "dm" || part === "group" || part === "channel",
   );
+
   if (markerIndex === -1) {
+    // Handling for simple keys like "custom-app:cc9d498a-..."
+    // If it has exactly 2 parts, treat it as a direct delivery.
+    if (parts.length === 2) {
+      const channel = parts[0]?.trim().toLowerCase() as CronMessageChannel;
+      const peerId = parts[1]?.trim();
+      if (channel && peerId) {
+        return { mode: "announce", channel, to: peerId };
+      }
+    }
     return null;
   }
   const peerId = parts

@@ -69,6 +69,7 @@ export function buildGatewayCronService(params: {
         agentId,
       });
       enqueueSystemEvent(text, { sessionKey });
+      requestHeartbeatNow({ reason: "cron:system-event" });
     },
     requestHeartbeatNow,
     runHeartbeatOnce: async (opts) => {

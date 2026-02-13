@@ -216,14 +216,10 @@ function hasExplicitHeartbeatAgents(cfg: OpenClawConfig) {
 
 export function isHeartbeatEnabledForAgent(cfg: OpenClawConfig, agentId?: string): boolean {
   const resolvedAgentId = normalizeAgentId(agentId ?? resolveDefaultAgentId(cfg));
-  const list = cfg.agents?.list ?? [];
-  const hasExplicit = hasExplicitHeartbeatAgents(cfg);
-  if (hasExplicit) {
-    return list.some(
-      (entry) => Boolean(entry?.heartbeat) && normalizeAgentId(entry?.id) === resolvedAgentId,
-    );
-  }
-  return resolvedAgentId === resolveDefaultAgentId(cfg);
+  // Check if this agent is explicitly disabled? Currently no 'enabled' flag in config, just presence.
+  // We assume all agents are enabled for heartbeats unless they have heartbeat: { enabled: false } (if schema supported it)
+  // or if global heartbeats are disabled.
+  return true; 
 }
 
 function resolveHeartbeatConfig(
@@ -291,17 +287,32 @@ export function resolveHeartbeatSummaryForAgent(
 
 function resolveHeartbeatAgents(cfg: OpenClawConfig): HeartbeatAgent[] {
   const list = cfg.agents?.list ?? [];
-  if (hasExplicitHeartbeatAgents(cfg)) {
-    return list
-      .filter((entry) => entry?.heartbeat)
-      .map((entry) => {
-        const id = normalizeAgentId(entry.id);
-        return { agentId: id, heartbeat: resolveHeartbeatConfig(cfg, id) };
-      })
-      .filter((entry) => entry.agentId);
+  const seen = new Set<string>();
+  const results: HeartbeatAgent[] = [];
+
+  // 1. Add all configured agents
+  for (const entry of list) {
+    if (!entry?.id) {
+      continue;
+    }
+    const agentId = normalizeAgentId(entry.id);
+    if (seen.has(agentId)) {
+      continue;
+    }
+    seen.add(agentId);
+    // Resolve config (merges explicit + defaults)
+    const heartbeat = resolveHeartbeatConfig(cfg, agentId);
+    results.push({ agentId, heartbeat });
   }
-  const fallbackId = resolveDefaultAgentId(cfg);
-  return [{ agentId: fallbackId, heartbeat: resolveHeartbeatConfig(cfg, fallbackId) }];
+
+  // 2. Ensure default agent is included if not already
+  const defaultId = normalizeAgentId(resolveDefaultAgentId(cfg));
+  if (!seen.has(defaultId) && defaultId) {
+    const heartbeat = resolveHeartbeatConfig(cfg, defaultId);
+    results.push({ agentId: defaultId, heartbeat });
+  }
+
+  return results;
 }
 
 export function resolveHeartbeatIntervalMs(

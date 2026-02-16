@@ -74,6 +74,8 @@ export type CronJob = {
   updatedAtMs: number;
   schedule: CronSchedule;
   sessionTarget: CronSessionTarget;
+  /** Explicit session key to target (e.g. for directed system events). if omitted, uses sessionTarget default. */
+  sessionKey?: string;
   wakeMode: CronWakeMode;
   payload: CronPayload;
   delivery?: CronDelivery;

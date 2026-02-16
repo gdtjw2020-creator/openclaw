@@ -386,6 +386,11 @@ Use jobId as the canonical identifier; id is accepted for compatibility. Use con
             }
           }
 
+          if (job && typeof job === "object" && !("sessionKey" in job) && opts?.agentSessionKey) {
+            // Automatically target the current session for reminders.
+            (job as { sessionKey?: string }).sessionKey = opts.agentSessionKey;
+          }
+
           if (
             opts?.agentSessionKey &&
             job &&

@@ -368,6 +368,15 @@ export function normalizeCronJobInput(
     }
   }
 
+  if ("sessionKey" in base) {
+    const sessionKey = base.sessionKey;
+    if (typeof sessionKey === "string" && sessionKey.trim()) {
+      next.sessionKey = sessionKey.trim();
+    } else {
+      delete next.sessionKey;
+    }
+  }
+
   if (isRecord(base.schedule)) {
     next.schedule = coerceSchedule(base.schedule);
   }

@@ -416,9 +416,9 @@ async function executeJobCore(
       deliveryPlan.channel !== "none" && deliveryPlan.to
         ? { channel: deliveryPlan.channel, to: deliveryPlan.to }
         : undefined;
-    const sessionKey = delivery
-      ? `agent:${job.agentId}:${delivery.channel}:${delivery.to}`
-      : undefined;
+    const sessionKey =
+      job.sessionKey ||
+      (delivery ? `agent:${job.agentId}:${delivery.channel}:${delivery.to}` : undefined);
     state.deps.enqueueSystemEvent(text, { agentId: job.agentId, sessionKey, delivery });
     if (job.wakeMode === "now" && state.deps.runHeartbeatOnce) {
       const reason = `cron:${job.id}`;
@@ -475,9 +475,9 @@ async function executeJobCore(
       deliveryPlan.channel !== "none" && deliveryPlan.to
         ? { channel: deliveryPlan.channel, to: deliveryPlan.to }
         : undefined;
-    const sessionKey = delivery
-      ? `agent:${job.agentId}:${delivery.channel}:${delivery.to}`
-      : undefined;
+    const sessionKey =
+      job.sessionKey ||
+      (delivery ? `agent:${job.agentId}:${delivery.channel}:${delivery.to}` : undefined);
     state.deps.enqueueSystemEvent(label, { agentId: job.agentId, sessionKey, delivery });
     if (job.wakeMode === "now") {
       state.deps.requestHeartbeatNow({ reason: `cron:${job.id}` });

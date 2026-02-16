@@ -11,7 +11,7 @@ import { runHeartbeatOnce } from "../infra/heartbeat-runner.js";
 import { requestHeartbeatNow } from "../infra/heartbeat-wake.js";
 import { enqueueSystemEvent } from "../infra/system-events.js";
 import { getChildLogger } from "../logging.js";
-import { normalizeAgentId } from "../routing/session-key.js";
+import { normalizeAgentId, toAgentStoreSessionKey } from "../routing/session-key.js";
 import { defaultRuntime } from "../runtime.js";
 
 export type GatewayCronState = {
@@ -64,12 +64,20 @@ export function buildGatewayCronService(params: {
         { agentId, requestedAgentId: opts?.agentId, sessionKey: opts?.sessionKey, textSummary: text.slice(0, 50) },
         "cron: enqueueSystemEvent resolved agent",
       );
-      const sessionKey =
-        opts?.sessionKey ??
-        resolveAgentMainSessionKey({
+      let sessionKey = opts?.sessionKey;
+      if (sessionKey) {
+        // Canonicalize the explicit session key (e.g. "cron:123" -> "agent:xyz:cron:123")
+        // This ensures it matches what heartbeat-runner expects.
+        sessionKey = toAgentStoreSessionKey({
+          agentId,
+          requestKey: sessionKey,
+        });
+      } else {
+        sessionKey = resolveAgentMainSessionKey({
           cfg: runtimeConfig,
           agentId,
         });
+      }
       enqueueSystemEvent(text, { sessionKey });
 
       if (opts?.delivery) {

@@ -73,6 +73,14 @@ export function buildGatewayCronService(params: {
       enqueueSystemEvent(text, { sessionKey });
 
       if (opts?.delivery) {
+        cronLogger.info(
+          {
+            agentId,
+            delivery: opts.delivery,
+            sessionKey,
+          },
+          "cron: preparing targeted heartbeat",
+        );
         // Targeted heartbeat for delivery-specific jobs
         void runHeartbeatOnce({
           cfg: runtimeConfig,

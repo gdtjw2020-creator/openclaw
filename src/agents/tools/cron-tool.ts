@@ -39,6 +39,7 @@ const CronToolSchema = Type.Object({
   text: Type.Optional(Type.String()),
   mode: optionalStringEnum(CRON_WAKE_MODES),
   runMode: optionalStringEnum(CRON_RUN_MODES),
+  sessionKey: Type.Optional(Type.String()),
   contextMessages: Type.Optional(
     Type.Number({ minimum: 0, maximum: REMINDER_CONTEXT_MESSAGES_MAX }),
   ),
@@ -347,7 +348,9 @@ Use jobId as the canonical identifier; id is accepted for compatibility. Use con
               "text",
               "model",
               "thinking",
-              "timeoutSeconds",
+              "thinking",
+            "timeoutSeconds",
+            "sessionKey",
               "allowUnsafeExternalContent",
             ]);
             const synthetic: Record<string, unknown> = {};

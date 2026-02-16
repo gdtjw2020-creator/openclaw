@@ -377,7 +377,8 @@ Use jobId as the canonical identifier; id is accepted for compatibility. Use con
             job &&
             typeof job === "object" &&
             "payload" in job &&
-            (job as { payload?: { kind?: string } }).payload?.kind === "agentTurn"
+            ((job as { payload?: { kind?: string } }).payload?.kind === "agentTurn" ||
+              (job as { payload?: { kind?: string } }).payload?.kind === "systemEvent")
           ) {
             const deliveryValue = (job as { delivery?: unknown }).delivery;
             const delivery = isRecord(deliveryValue) ? deliveryValue : undefined;

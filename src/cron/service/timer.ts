@@ -412,11 +412,14 @@ async function executeJobCore(
       };
     }
     const deliveryPlan = resolveCronDeliveryPlan(job);
-    const sessionKey =
+    const delivery =
       deliveryPlan.channel !== "none" && deliveryPlan.to
-        ? `agent:${job.agentId}:${deliveryPlan.channel}:${deliveryPlan.to}`
+        ? { channel: deliveryPlan.channel, to: deliveryPlan.to }
         : undefined;
-    state.deps.enqueueSystemEvent(text, { agentId: job.agentId, sessionKey });
+    const sessionKey = delivery
+      ? `agent:${job.agentId}:${delivery.channel}:${delivery.to}`
+      : undefined;
+    state.deps.enqueueSystemEvent(text, { agentId: job.agentId, sessionKey, delivery });
     if (job.wakeMode === "now" && state.deps.runHeartbeatOnce) {
       const reason = `cron:${job.id}`;
       const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -468,11 +471,14 @@ async function executeJobCore(
     const prefix = "Cron";
     const label =
       res.status === "error" ? `${prefix} (error): ${summaryText}` : `${prefix}: ${summaryText}`;
-    const sessionKey =
+    const delivery =
       deliveryPlan.channel !== "none" && deliveryPlan.to
-        ? `agent:${job.agentId}:${deliveryPlan.channel}:${deliveryPlan.to}`
+        ? { channel: deliveryPlan.channel, to: deliveryPlan.to }
         : undefined;
-    state.deps.enqueueSystemEvent(label, { agentId: job.agentId, sessionKey });
+    const sessionKey = delivery
+      ? `agent:${job.agentId}:${delivery.channel}:${delivery.to}`
+      : undefined;
+    state.deps.enqueueSystemEvent(label, { agentId: job.agentId, sessionKey, delivery });
     if (job.wakeMode === "now") {
       state.deps.requestHeartbeatNow({ reason: `cron:${job.id}` });
     }

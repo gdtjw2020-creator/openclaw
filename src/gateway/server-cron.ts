@@ -71,7 +71,25 @@ export function buildGatewayCronService(params: {
           agentId,
         });
       enqueueSystemEvent(text, { sessionKey });
-      requestHeartbeatNow({ reason: "cron:system-event" });
+
+      if (opts?.delivery) {
+        // Targeted heartbeat for delivery-specific jobs
+        void runHeartbeatOnce({
+          cfg: runtimeConfig,
+          agentId,
+          reason: "cron:system-event",
+          heartbeat: {
+            target: opts.delivery.channel,
+            to: opts.delivery.to,
+            session: sessionKey,
+          },
+          deps: { ...params.deps, runtime: defaultRuntime },
+        }).catch((err) => {
+          cronLogger.error({ err: String(err), agentId }, "cron: targeted heartbeat failed");
+        });
+      } else {
+        requestHeartbeatNow({ reason: "cron:system-event" });
+      }
     },
     requestHeartbeatNow,
     runHeartbeatOnce: async (opts) => {

@@ -521,16 +521,22 @@ export async function executeJob(
   try {
     coreResult = await executeJobCore(state, job);
   } catch (err) {
+    console.error("CRON JOB EXECUTION CRASHED (caught):", err);
     coreResult = { status: "error", error: String(err) };
   }
 
   const endedAt = state.deps.nowMs();
-  const shouldDelete = applyJobResult(state, job, {
-    status: coreResult.status,
-    error: coreResult.error,
-    startedAt,
-    endedAt,
-  });
+  let shouldDelete = false;
+  try {
+    shouldDelete = applyJobResult(state, job, {
+      status: coreResult.status,
+      error: coreResult.error,
+      startedAt,
+      endedAt,
+    });
+  } catch (err) {
+    console.error("CRON APPLY JOB RESULT FAILED:", err);
+  }
 
   emit(state, {
     jobId: job.id,

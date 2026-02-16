@@ -208,6 +208,20 @@ function inferDeliveryFromSessionKey(agentSessionKey?: string): CronDelivery | n
         return { mode: "announce", channel, to: peerId };
       }
     }
+
+    // NEW: Handling for "agent:<agentId>:custom-app:<deviceId>" (Multi-agent Custom App)
+    // parsed.provider would be "agent"
+    if (parsed.provider === "agent") {
+      const caIndex = parts.indexOf("custom-app");
+      // ensure custom-app is found and there is a part after it (the deviceId)
+      if (caIndex !== -1 && caIndex < parts.length - 1) {
+        const deviceId = parts.slice(caIndex + 1).join(":").trim();
+        if (deviceId) {
+          return { mode: "announce", channel: "custom-app", to: deviceId };
+        }
+      }
+    }
+
     return null;
   }
   const peerId = parts

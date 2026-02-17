@@ -124,6 +124,8 @@ export const CronJobSchema = Type.Object(
     updatedAtMs: Type.Integer({ minimum: 0 }),
     schedule: CronScheduleSchema,
     sessionTarget: Type.Union([Type.Literal("main"), Type.Literal("isolated")]),
+    /** Explicit session key to target (e.g. for directed system events). if omitted, uses sessionTarget default. */
+    sessionKey: Type.Optional(Type.String()),
     wakeMode: Type.Union([Type.Literal("next-heartbeat"), Type.Literal("now")]),
     payload: CronPayloadSchema,
     delivery: Type.Optional(CronDeliverySchema),
@@ -150,6 +152,8 @@ export const CronAddParamsSchema = Type.Object(
     deleteAfterRun: Type.Optional(Type.Boolean()),
     schedule: CronScheduleSchema,
     sessionTarget: Type.Union([Type.Literal("main"), Type.Literal("isolated")]),
+    /** Explicit session key to target (e.g. for directed system events). if omitted, uses sessionTarget default. */
+    sessionKey: Type.Optional(Type.String()),
     wakeMode: Type.Union([Type.Literal("next-heartbeat"), Type.Literal("now")]),
     payload: CronPayloadSchema,
     delivery: Type.Optional(CronDeliverySchema),
@@ -166,6 +170,8 @@ export const CronJobPatchSchema = Type.Object(
     deleteAfterRun: Type.Optional(Type.Boolean()),
     schedule: Type.Optional(CronScheduleSchema),
     sessionTarget: Type.Optional(Type.Union([Type.Literal("main"), Type.Literal("isolated")])),
+    /** Explicit session key to target (e.g. for directed system events). if omitted, uses sessionTarget default. */
+    sessionKey: Type.Optional(Type.String()),
     wakeMode: Type.Optional(Type.Union([Type.Literal("next-heartbeat"), Type.Literal("now")])),
     payload: Type.Optional(CronPayloadPatchSchema),
     delivery: Type.Optional(CronDeliveryPatchSchema),

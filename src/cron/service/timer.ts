@@ -334,35 +334,149 @@ function findDueJobs(state: CronServiceState): CronJob[] {
 }
 
 export async function runMissedJobs(state: CronServiceState) {
-  if (!state.store) {
-    return;
-  }
-  const now = state.deps.nowMs();
-  const missed = state.store.jobs.filter((j) => {
-    if (!j.state) {
-      j.state = {};
+  const missedJobs = await locked(state, async () => {
+    // We assume ensureLoaded was called by start() already, but safe to ensure again
+    if (!state.store) {
+      return [];
     }
-    if (!j.enabled) {
-      return false;
-    }
-    if (typeof j.state.runningAtMs === "number") {
-      return false;
-    }
-    const next = j.state.nextRunAtMs;
-    if (j.schedule.kind === "at" && j.state.lastStatus === "ok") {
-      return false;
-    }
-    return typeof next === "number" && now >= next;
-  });
+    const now = state.deps.nowMs();
+    const missed = state.store.jobs.filter((j) => {
+      if (!j.state) {
+        j.state = {};
+      }
+      if (!j.enabled) {
+        return false;
+      }
+      if (typeof j.state.runningAtMs === "number") {
+        return false;
+      }
+      const next = j.state.nextRunAtMs;
+      if (typeof next !== "number" || now < next) {
+        return false;
+      }
+      // Special case for one-shot jobs: if they succeeded once, don't re-run
+      // even if their nextRunAtMs is in the past (which shouldn't happen if logic is correct,
+      // but safe to guard).
+      if (j.schedule.kind === "at" && j.state.lastStatus === "ok") {
+        return false;
+      }
+      return true;
+    });
 
-  if (missed.length > 0) {
+    if (missed.length === 0) {
+      return [];
+    }
+
     state.deps.log.info(
       { count: missed.length, jobIds: missed.map((j) => j.id) },
       "cron: running missed jobs after restart",
     );
+
     for (const job of missed) {
-      await executeJob(state, job, now, { forced: false });
+      job.state.runningAtMs = now;
+      job.state.lastError = undefined;
     }
+    await persist(state);
+
+    return missed.map((j) => ({
+      id: j.id,
+      job: j,
+    }));
+  });
+
+  if (missedJobs.length === 0) {
+    return;
+  }
+
+  const results: Array<{
+    jobId: string;
+    status: "ok" | "error" | "skipped";
+    error?: string;
+    summary?: string;
+    sessionId?: string;
+    sessionKey?: string;
+    startedAt: number;
+    endedAt: number;
+  }> = [];
+
+  for (const { id, job } of missedJobs) {
+    const startedAt = state.deps.nowMs();
+    // Re-mark running (in case in-memory object changed, though it's ref)
+    job.state.runningAtMs = startedAt;
+    emit(state, { jobId: job.id, action: "started", runAtMs: startedAt });
+
+    const jobTimeoutMs =
+      job.payload.kind === "agentTurn" && typeof job.payload.timeoutSeconds === "number"
+        ? job.payload.timeoutSeconds * 1_000
+        : DEFAULT_JOB_TIMEOUT_MS;
+
+    try {
+      let timeoutId: NodeJS.Timeout;
+      const result = await Promise.race([
+        executeJobCore(state, job),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(
+            () => reject(new Error("cron: job execution timed out")),
+            jobTimeoutMs,
+          );
+        }),
+      ]).finally(() => clearTimeout(timeoutId!));
+      results.push({ jobId: id, ...result, startedAt, endedAt: state.deps.nowMs() });
+    } catch (err) {
+      state.deps.log.warn(
+        { jobId: id, jobName: job.name, timeoutMs: jobTimeoutMs },
+        `cron: missed job failed: ${String(err)}`,
+      );
+      results.push({
+        jobId: id,
+        status: "error",
+        error: String(err),
+        startedAt,
+        endedAt: state.deps.nowMs(),
+      });
+    }
+  }
+
+  if (results.length > 0) {
+    await locked(state, async () => {
+      // Reload to ensure we have latest state to apply results to
+      await ensureLoaded(state, { forceReload: true, skipRecompute: true });
+
+      for (const result of results) {
+        const job = state.store?.jobs.find((j) => j.id === result.jobId);
+        if (!job) {
+          continue;
+        }
+
+        const shouldDelete = applyJobResult(state, job, {
+          status: result.status,
+          error: result.error,
+          startedAt: result.startedAt,
+          endedAt: result.endedAt,
+        });
+
+        emit(state, {
+          jobId: job.id,
+          action: "finished",
+          status: result.status,
+          error: result.error,
+          summary: result.summary,
+          sessionId: result.sessionId,
+          sessionKey: result.sessionKey,
+          runAtMs: result.startedAt,
+          durationMs: job.state.lastDurationMs,
+          nextRunAtMs: job.state.nextRunAtMs,
+        });
+
+        if (shouldDelete && state.store) {
+          state.store.jobs = state.store.jobs.filter((j) => j.id !== job.id);
+          emit(state, { jobId: job.id, action: "removed" });
+        }
+      }
+
+      recomputeNextRuns(state);
+      await persist(state);
+    });
   }
 }
 

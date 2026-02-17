@@ -30,7 +30,6 @@ export async function start(state: CronServiceState) {
         job.state.runningAtMs = undefined;
       }
     }
-    await runMissedJobs(state);
     recomputeNextRuns(state);
     await persist(state);
     armTimer(state);
@@ -43,6 +42,14 @@ export async function start(state: CronServiceState) {
       "cron: started",
     );
   });
+
+  // Run missed jobs in the background so we don't block startup or holding the lock.
+  // runMissedJobs manages its own locking (acquires lock -> finds jobs -> releases -> executes -> acquires -> saves).
+  if (state.deps.cronEnabled) {
+    runMissedJobs(state).catch((err) => {
+      state.deps.log.error({ err: String(err) }, "cron: runMissedJobs failed");
+    });
+  }
 }
 
 export function stop(state: CronServiceState) {
